@@ -560,7 +560,10 @@ export default function AdminForm({
             </div>
           </Field>
 
-          <Field label="Custom domain (optional)" hint="Point the client's own domain here. DNS steps are in README.md.">
+          <Field
+            label="Custom domain (optional)"
+            hint="⚠️ Set this only AFTER the client's DNS points here and the domain opens. The QR code retargets to this domain the moment you save — set it too early and every printed QR leads to a dead page. DNS steps are in README.md."
+          >
             <input className={inputClass} value={customDomain} onChange={(e) => setCustomDomain(e.target.value)} placeholder="theirdomain.com" />
           </Field>
 
