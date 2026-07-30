@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { BusinessFull } from './types';
+import type { BusinessFull, ReviewBusiness } from './types';
 
 const SELECT = `
   *,
@@ -57,6 +57,25 @@ export async function getBusinessByDomain(domain: string): Promise<BusinessFull 
 
   if (error || !data) return null;
   return normalise(data as unknown as BusinessFull);
+}
+
+/** Just the fields the review page needs — no child tables, so it loads fast. */
+export async function getReviewBusiness(slug: string): Promise<ReviewBusiness | null> {
+  const { data, error } = await supabase
+    .from('businesses')
+    .select(
+      'id, slug, name, tagline, logo_url, theme_color, template, ' +
+        'review_enabled, google_review_url, review_threshold, review_headline, review_thanks'
+    )
+    .eq('slug', slug)
+    .eq('published', true)
+    .eq('review_enabled', true)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  // Postgrest can't infer a shape from a column string, so it hands back a
+  // union that never narrows. The columns above match ReviewBusiness exactly.
+  return data as unknown as ReviewBusiness;
 }
 
 /** Fire-and-forget; a failed counter must never break the page render. */

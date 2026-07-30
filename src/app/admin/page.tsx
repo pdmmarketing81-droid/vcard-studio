@@ -38,12 +38,20 @@ export default async function AdminHome() {
             {cards.length} total · {live} live
           </p>
         </div>
-        <Link
-          href="/admin/new"
-          className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
-        >
-          + New card
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/admin/feedback"
+            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+          >
+            Feedback
+          </Link>
+          <Link
+            href="/admin/new"
+            className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
+          >
+            + New card
+          </Link>
+        </div>
       </div>
 
       {error && (

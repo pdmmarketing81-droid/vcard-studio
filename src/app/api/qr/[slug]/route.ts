@@ -10,6 +10,7 @@ import { absoluteUrl } from '@/lib/url';
  *                   and WhatsApp actually accept.
  * ?size=1024        png pixel size. 1024 survives a standee; 2048 a hoarding.
  * ?download=1       forces a save-as instead of rendering inline.
+ * ?target=review    points at the review page (/r/slug) instead of the card.
  */
 export async function GET(req: Request, { params }: { params: { slug: string } }) {
   const business = await getBusinessBySlug(params.slug);
@@ -22,10 +23,15 @@ export async function GET(req: Request, { params }: { params: { slug: string } }
   const download = url.searchParams.get('download') === '1';
   const size = Math.min(4096, Math.max(128, Number(url.searchParams.get('size')) || 1024));
 
-  // A custom domain makes a nicer QR target than the platform URL.
-  const target = business.custom_domain
-    ? `https://${business.custom_domain}`
-    : absoluteUrl(`/${business.slug}`);
+  const isReview = url.searchParams.get('target') === 'review';
+
+  // The review page always lives on the platform domain — a client's custom
+  // domain serves their card at "/", so /r/... wouldn't resolve there.
+  const target = isReview
+    ? absoluteUrl(`/r/${business.slug}`)
+    : business.custom_domain
+      ? `https://${business.custom_domain}`
+      : absoluteUrl(`/${business.slug}`);
 
   // Higher correction on print assets: a scuffed or partly covered standee
   // still scans.
@@ -35,7 +41,7 @@ export async function GET(req: Request, { params }: { params: { slug: string } }
     color: { dark: business.theme_color, light: '#FFFFFF' },
   };
 
-  const filename = `${business.slug}-qr.${format}`;
+  const filename = `${business.slug}${isReview ? '-review' : ''}-qr.${format}`;
   const disposition = download
     ? `attachment; filename="${filename}"`
     : `inline; filename="${filename}"`;

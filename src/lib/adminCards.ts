@@ -66,6 +66,13 @@ export function businessRow(body: Body, slug: string) {
     extras: body.extras && typeof body.extras === 'object' ? body.extras : {},
     design: body.design && typeof body.design === 'object' ? body.design : {},
     published: body.published !== false,
+
+    review_enabled: body.review_enabled === true,
+    google_review_url: str(body.google_review_url),
+    feedback_email: str(body.feedback_email),
+    review_threshold: Math.min(5, Math.max(1, num(body.review_threshold) ?? 4)),
+    review_headline: str(body.review_headline),
+    review_thanks: str(body.review_thanks),
   };
 }
 

@@ -10,6 +10,7 @@ import UploadInput, { inputClass } from './admin/UploadInput';
 import Repeater from './admin/Repeater';
 import CardPreview from './admin/CardPreview';
 import DesignPanel from './admin/DesignPanel';
+import ReviewLinkCard from './admin/ReviewLinkCard';
 import { SocialIcon, socialBackground } from './SocialIcon';
 
 const PLATFORMS: SocialPlatform[] = [
@@ -17,7 +18,7 @@ const PLATFORMS: SocialPlatform[] = [
 ];
 const THEMES = ['#0f766e', '#0369a1', '#4f46e5', '#9d174d', '#b45309', '#7c3aed', '#334155'];
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const TABS = ['Basics', 'Content', 'Media', 'Hours', 'Design', 'Settings'] as const;
+const TABS = ['Basics', 'Content', 'Media', 'Hours', 'Design', 'Reviews', 'Settings'] as const;
 type Tab = (typeof TABS)[number];
 
 /** Pasting a URL is faster than choosing from a dropdown, so we infer. */
@@ -116,6 +117,14 @@ export default function AdminForm({
     (initial?.design as CardDesign) ?? {}
   );
 
+  // ---- review funnel ----
+  const [reviewEnabled, setReviewEnabled] = useState(initial?.review_enabled ?? false);
+  const [googleReviewUrl, setGoogleReviewUrl] = useState(s(initial?.google_review_url));
+  const [feedbackEmail, setFeedbackEmail] = useState(s(initial?.feedback_email));
+  const [reviewThreshold, setReviewThreshold] = useState(initial?.review_threshold ?? 4);
+  const [reviewHeadline, setReviewHeadline] = useState(s(initial?.review_headline));
+  const [reviewThanks, setReviewThanks] = useState(s(initial?.review_thanks));
+
   const [links, setLinks] = useState<LinkRow[]>(
     initial?.social_links.map((l) => ({ platform: l.platform, url: l.url })) ?? []
   );
@@ -184,6 +193,12 @@ export default function AdminForm({
       template,
       extras,
       design: design as Record<string, unknown>,
+      review_enabled: reviewEnabled,
+      google_review_url: googleReviewUrl || null,
+      feedback_email: feedbackEmail || null,
+      review_threshold: reviewThreshold,
+      review_headline: reviewHeadline || null,
+      review_thanks: reviewThanks || null,
       published,
       view_count: initial?.view_count ?? 0,
       created_at: '',
@@ -255,6 +270,12 @@ export default function AdminForm({
     try {
       const payload = {
         template, name, tagline, about, extras, design, published,
+        review_enabled: reviewEnabled,
+        google_review_url: googleReviewUrl,
+        feedback_email: feedbackEmail,
+        review_threshold: reviewThreshold,
+        review_headline: reviewHeadline,
+        review_thanks: reviewThanks,
         ...(editing ? { slug: customSlug } : {}),
         logo_url: logoUrl, cover_url: coverUrl, cover_type: coverType,
         email, phone, whatsapp, address, website,
@@ -544,6 +565,75 @@ export default function AdminForm({
 
       {tab === 'Design' && (
         <DesignPanel design={design} onChange={setDesign} template={tpl} />
+      )}
+
+      {tab === 'Reviews' && (
+        <>
+          <Panel title="Review funnel">
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <input type="checkbox" checked={reviewEnabled} onChange={(e) => setReviewEnabled(e.target.checked)} />
+              Enable the review page for this business
+            </label>
+
+            {reviewEnabled && (
+              <>
+                <Field label="Google review link *"
+                  hint="Google Business Profile → Ask for reviews → copy the short link (g.page/r/…). Without this, every rating opens the private form.">
+                  <input className={inputClass} value={googleReviewUrl}
+                    onChange={(e) => setGoogleReviewUrl(e.target.value)}
+                    placeholder="https://g.page/r/CxxxxxxxxxxxxEBM/review" />
+                </Field>
+
+                <Field label="Client's email *"
+                  hint="Private feedback lands here. Sent from your own mailbox — replying goes back to the customer.">
+                  <input className={inputClass} type="email" value={feedbackEmail}
+                    onChange={(e) => setFeedbackEmail(e.target.value)}
+                    placeholder="owner@theirbusiness.com" />
+                </Field>
+
+                <Field
+                  label={`Send to Google at ${reviewThreshold}★ and above`}
+                  hint={
+                    reviewThreshold === 1
+                      ? 'Everyone goes to Google — no filtering at all.'
+                      : `${reviewThreshold}–5★ → Google. 1–${reviewThreshold - 1}★ → private form to the client's email.`
+                  }
+                >
+                  <input type="range" min={1} max={5} step={1} className="w-full"
+                    value={reviewThreshold}
+                    onChange={(e) => setReviewThreshold(Number(e.target.value))} />
+                  <div className="flex justify-between px-1 text-[11px] text-slate-400">
+                    {[1, 2, 3, 4, 5].map((n) => <span key={n}>{n}★</span>)}
+                  </div>
+                </Field>
+
+                <Field label="Headline" hint="Shown above the stars.">
+                  <input className={inputClass} value={reviewHeadline}
+                    onChange={(e) => setReviewHeadline(e.target.value)}
+                    placeholder="How was your experience?" />
+                </Field>
+
+                <Field label="Thank-you message" hint="Shown after private feedback is sent.">
+                  <input className={inputClass} value={reviewThanks}
+                    onChange={(e) => setReviewThanks(e.target.value)}
+                    placeholder="Thank you for telling us." />
+                </Field>
+              </>
+            )}
+          </Panel>
+
+          {reviewEnabled && editing && (
+            <Panel title="Share it">
+              <ReviewLinkCard slug={customSlug} />
+            </Panel>
+          )}
+
+          {reviewEnabled && !editing && (
+            <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Publish the card first — the review link and QR appear here once it has a URL.
+            </p>
+          )}
+        </>
       )}
 
       {tab === 'Settings' && (
