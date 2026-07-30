@@ -577,11 +577,19 @@ export default function AdminForm({
 
             {reviewEnabled && (
               <>
-                <Field label="Google review link *"
-                  hint="Google Business Profile → Ask for reviews → copy the short link (g.page/r/…). Without this, every rating opens the private form.">
+                <Field
+                  label="Google review link *"
+                  hint="Best source: Google Business Profile → Ask for reviews → copy link (g.page/r/…/review). It comes straight from the listing, so it can't be wrong. A search.google.com/local/writereview?placeid=… link also works, but only if the Place ID belongs to that exact verified listing — a wrong ID silently lands on a search page instead of the review box. Test the link yourself before saving. Without a link here, every rating opens the private form."
+                >
                   <input className={inputClass} value={googleReviewUrl}
                     onChange={(e) => setGoogleReviewUrl(e.target.value)}
                     placeholder="https://g.page/r/CxxxxxxxxxxxxEBM/review" />
+                  {googleReviewUrl.trim() && (
+                    <a href={googleReviewUrl} target="_blank" rel="noopener noreferrer"
+                      className="mt-1 inline-block text-xs font-semibold text-slate-600 underline">
+                      Test this link ↗
+                    </a>
+                  )}
                 </Field>
 
                 <Field label="Client's email *"

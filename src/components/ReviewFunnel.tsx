@@ -34,17 +34,30 @@ export default function ReviewFunnel({ business: b }: { business: ReviewBusiness
     setRating(stars);
     const high = stars >= b.review_threshold && !!b.google_review_url;
 
-    if (high) {
-      setStage('google');
-      // Log first, then hand off — if the visitor leaves instantly we still
-      // have the rating.
-      log(stars, true).catch(() => {});
-      setTimeout(() => {
-        window.location.href = b.google_review_url!;
-      }, 1400);
-    } else {
+    if (!high) {
       setStage('form');
+      return;
     }
+
+    // sendBeacon is queued by the browser and delivered even after the page
+    // navigates away — so the rating is recorded without making the visitor
+    // wait for a fetch to finish before the redirect.
+    const payload = JSON.stringify({ rating: stars, went_to_google: true });
+    let queued = false;
+    try {
+      queued = navigator.sendBeacon(
+        `/api/review/${b.slug}`,
+        new Blob([payload], { type: 'application/json' })
+      );
+    } catch {
+      queued = false;
+    }
+    if (!queued) log(stars, true).catch(() => {});
+
+    // Shown only if the browser blocks the redirect — normally the visitor
+    // never sees this frame.
+    setStage('google');
+    window.location.href = b.google_review_url!;
   }
 
   async function submit(e: React.FormEvent) {
@@ -128,22 +141,18 @@ export default function ReviewFunnel({ business: b }: { business: ReviewBusiness
 
           {/* ------------------- Stage: to Google ------------------ */}
           {stage === 'google' && (
-            <div className="py-4 text-center">
+            <div className="py-8 text-center">
               <div className="mb-4 text-5xl">🎉</div>
               <h2 className="text-lg font-bold text-slate-800">Thank you!</h2>
-              <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                Taking you to Google so you can share it publicly…
-              </p>
+              <p className="mt-2 text-sm text-slate-500">Opening Google…</p>
+              {/* Only reachable if the browser refused the redirect. */}
               <a
                 href={b.google_review_url ?? '#'}
-                className="mt-6 inline-flex w-full items-center justify-center rounded-xl py-3.5 text-sm font-bold text-white transition hover:opacity-90"
-                style={{ background: brand }}
+                className="mt-5 inline-block text-sm font-semibold underline"
+                style={{ color: brand }}
               >
-                Continue to Google
+                Tap here if nothing happens
               </a>
-              <p className="mt-3 text-xs text-slate-400">
-                Not redirected? Tap the button above.
-              </p>
             </div>
           )}
 
@@ -201,7 +210,7 @@ export default function ReviewFunnel({ business: b }: { business: ReviewBusiness
                 className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-50"
                 style={{ background: brand }}
               >
-                {sending ? 'Sending…' : 'Send privately'}
+                {sending ? 'Sending…' : 'Send review'}
               </button>
               <p className="text-center text-xs text-slate-400">
                 Only the owner sees this. It is not posted anywhere.
