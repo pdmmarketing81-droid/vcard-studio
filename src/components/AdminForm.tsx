@@ -585,10 +585,23 @@ export default function AdminForm({
                     onChange={(e) => setGoogleReviewUrl(e.target.value)}
                     placeholder="https://g.page/r/CxxxxxxxxxxxxEBM/review" />
                   {googleReviewUrl.trim() && (
-                    <a href={googleReviewUrl} target="_blank" rel="noopener noreferrer"
-                      className="mt-1 inline-block text-xs font-semibold text-slate-600 underline">
-                      Test this link ↗
-                    </a>
+                    <>
+                      {/* A pasted-from-the-wrong-clipboard link is silent
+                          otherwise: happy customers just get sent somewhere
+                          random and you never find out. */}
+                      {!/^https:\/\/([\w-]+\.)*(google\.[a-z.]+|g\.page|goo\.gl|maps\.app\.goo\.gl)\//i.test(
+                        googleReviewUrl.trim()
+                      ) && (
+                        <p className="mt-1.5 rounded-lg bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+                          This isn&apos;t a Google link. Happy customers will be sent
+                          here instead of to the review box — double-check what you pasted.
+                        </p>
+                      )}
+                      <a href={googleReviewUrl} target="_blank" rel="noopener noreferrer"
+                        className="mt-1 inline-block text-xs font-semibold text-slate-600 underline">
+                        Test this link ↗
+                      </a>
+                    </>
                   )}
                 </Field>
 
