@@ -18,6 +18,35 @@ const PLATFORMS: SocialPlatform[] = [
 ];
 const THEMES = ['#0f766e', '#0369a1', '#4f46e5', '#9d174d', '#b45309', '#7c3aed', '#334155'];
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/**
+ * Two different mistakes are easy to make here, and both fail silently:
+ * pasting a non-Google link, or pasting a Google *search* link that shows the
+ * listing but never opens the write-a-review box.
+ */
+function checkGoogleReviewUrl(raw: string): { level: 'ok' | 'warn' | 'bad'; note: string } {
+  const url = raw.trim();
+  if (!url) return { level: 'ok', note: '' };
+
+  const isGoogle =
+    /^https:\/\/([\w-]+\.)*(google\.[a-z.]+|g\.page|goo\.gl|maps\.app\.goo\.gl)\//i.test(url);
+  if (!isGoogle) {
+    return {
+      level: 'bad',
+      note: "This isn't a Google link at all. Happy customers will be sent here instead of to the review box.",
+    };
+  }
+
+  // The two forms that actually land on the write-a-review dialog.
+  const opensReviewBox =
+    /writereview/i.test(url) || /g\.page\/r\/[^/]+\/review/i.test(url);
+  if (opensReviewBox) return { level: 'ok', note: '' };
+
+  return {
+    level: 'warn',
+    note: 'This is a Google link, but it looks like a search or maps page — it shows the business, not the "write a review" box. Customers will have to hunt for the review section. Use Business Profile → Ask for reviews → Copy link instead.',
+  };
+}
 const TABS = ['Basics', 'Content', 'Media', 'Hours', 'Design', 'Reviews', 'Settings'] as const;
 type Tab = (typeof TABS)[number];
 
@@ -584,25 +613,33 @@ export default function AdminForm({
                   <input className={inputClass} value={googleReviewUrl}
                     onChange={(e) => setGoogleReviewUrl(e.target.value)}
                     placeholder="https://g.page/r/CxxxxxxxxxxxxEBM/review" />
-                  {googleReviewUrl.trim() && (
-                    <>
-                      {/* A pasted-from-the-wrong-clipboard link is silent
-                          otherwise: happy customers just get sent somewhere
-                          random and you never find out. */}
-                      {!/^https:\/\/([\w-]+\.)*(google\.[a-z.]+|g\.page|goo\.gl|maps\.app\.goo\.gl)\//i.test(
-                        googleReviewUrl.trim()
-                      ) && (
-                        <p className="mt-1.5 rounded-lg bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
-                          This isn&apos;t a Google link. Happy customers will be sent
-                          here instead of to the review box — double-check what you pasted.
-                        </p>
-                      )}
-                      <a href={googleReviewUrl} target="_blank" rel="noopener noreferrer"
-                        className="mt-1 inline-block text-xs font-semibold text-slate-600 underline">
-                        Test this link ↗
-                      </a>
-                    </>
-                  )}
+                  {googleReviewUrl.trim() && (() => {
+                    const check = checkGoogleReviewUrl(googleReviewUrl);
+                    return (
+                      <>
+                        {check.level !== 'ok' && (
+                          <p
+                            className={`mt-1.5 rounded-lg px-3 py-2 text-xs font-medium ${
+                              check.level === 'bad'
+                                ? 'bg-rose-50 text-rose-700'
+                                : 'bg-amber-50 text-amber-800'
+                            }`}
+                          >
+                            {check.note}
+                          </p>
+                        )}
+                        {check.level === 'ok' && (
+                          <p className="mt-1.5 text-xs font-medium text-emerald-600">
+                            ✓ Opens the review box directly
+                          </p>
+                        )}
+                        <a href={googleReviewUrl} target="_blank" rel="noopener noreferrer"
+                          className="mt-1 inline-block text-xs font-semibold text-slate-600 underline">
+                          Test this link ↗
+                        </a>
+                      </>
+                    );
+                  })()}
                 </Field>
 
                 <Field label="Client's email *"

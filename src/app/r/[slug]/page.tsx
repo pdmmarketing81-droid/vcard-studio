@@ -7,7 +7,9 @@ import { getReviewBusiness } from '@/lib/queries';
  * The review page lives at /r/[slug] — deliberately short, because this URL
  * gets pasted into WhatsApp messages and printed under QR codes.
  */
-export const revalidate = 300;
+// Short window on purpose: this page is toggled on and off from the admin,
+// and a stale 404 here means a printed QR leads nowhere.
+export const revalidate = 30;
 
 type Props = { params: { slug: string } };
 

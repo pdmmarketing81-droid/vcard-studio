@@ -216,6 +216,10 @@ export async function writeChildren(
 export function revalidateCard(slug: string, customDomain?: string | null) {
   try {
     revalidatePath(`/${slug}`);
+    // The review page too. Next caches notFound() the same as a real page, so
+    // one visit before the funnel was switched on would otherwise keep serving
+    // a 404 until the window expired.
+    revalidatePath(`/r/${slug}`);
     if (customDomain) revalidatePath(`/d/${customDomain}`);
   } catch {
     /* revalidation is best-effort */
