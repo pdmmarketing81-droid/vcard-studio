@@ -12,6 +12,7 @@ type Row = {
   phone: string | null;
   email: string | null;
   message: string | null;
+  attachments: { url: string; name: string; type: string }[] | null;
   went_to_google: boolean;
   emailed: boolean;
   email_error: string | null;
@@ -116,6 +117,30 @@ export default async function FeedbackInbox() {
               <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600">
                 {f.message}
               </p>
+            )}
+
+            {!!f.attachments?.length && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {f.attachments.map((a) => (
+                  <a
+                    key={a.url}
+                    href={a.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block h-16 w-16 overflow-hidden rounded-lg ring-1 ring-slate-200 transition hover:ring-slate-400"
+                    title={a.name}
+                  >
+                    {a.type.startsWith('video/') ? (
+                      <span className="flex h-full w-full items-center justify-center bg-slate-900 text-white">
+                        ▶
+                      </span>
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={a.url} alt={a.name} className="h-full w-full object-cover" />
+                    )}
+                  </a>
+                ))}
+              </div>
             )}
 
             {(f.name || f.phone || f.email) && (

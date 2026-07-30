@@ -134,6 +134,13 @@ export interface ReviewBusiness {
   review_thanks: string | null;
 }
 
+export interface FeedbackAttachment {
+  url: string;
+  name: string;
+  type: string;
+  size: number;
+}
+
 export interface Feedback {
   id: string;
   business_id: string;
@@ -142,6 +149,7 @@ export interface Feedback {
   phone: string | null;
   email: string | null;
   message: string | null;
+  attachments: FeedbackAttachment[];
   went_to_google: boolean;
   emailed: boolean;
   email_error: string | null;

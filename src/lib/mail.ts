@@ -32,12 +32,19 @@ function transport(): nodemailer.Transporter {
   return cached;
 }
 
+export interface MailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType: string;
+}
+
 export interface MailInput {
   to: string;
   subject: string;
   html: string;
   text: string;
   replyTo?: string;
+  attachments?: MailAttachment[];
 }
 
 export async function sendMail(input: MailInput): Promise<void> {
@@ -49,6 +56,7 @@ export async function sendMail(input: MailInput): Promise<void> {
     html: input.html,
     text: input.text,
     replyTo: input.replyTo,
+    attachments: input.attachments,
   });
 }
 
@@ -62,6 +70,7 @@ export function feedbackEmail(opts: {
   phone?: string | null;
   email?: string | null;
   message?: string | null;
+  attachmentUrls?: string[];
 }): { subject: string; html: string; text: string } {
   const stars = '★'.repeat(opts.rating) + '☆'.repeat(5 - opts.rating);
   const rows: Array<[string, string]> = [
@@ -101,6 +110,15 @@ export function feedbackEmail(opts: {
   <div style="margin-top:18px;padding:16px;background:#f8fafc;border-radius:12px;border-left:3px solid #0f766e">
     <p style="margin:0;white-space:pre-line;line-height:1.6">${esc(opts.message || '(no message)')}</p>
   </div>
+  ${
+    opts.attachmentUrls?.length
+      ? `<p style="margin-top:16px;font-size:13px;color:#475569">
+           <strong>${opts.attachmentUrls.length} attachment${opts.attachmentUrls.length > 1 ? 's' : ''}</strong>
+           — included with this email, and also here:<br>
+           ${opts.attachmentUrls.map((u) => `<a href="${esc(u)}" style="color:#0f766e">${esc(u.split('/').pop() || 'file')}</a>`).join('<br>')}
+         </p>`
+      : ''
+  }
   <p style="margin-top:24px;font-size:12px;color:#94a3b8">
     This customer left feedback privately instead of posting publicly.
     Replying to this email reaches them directly if they left an address.
