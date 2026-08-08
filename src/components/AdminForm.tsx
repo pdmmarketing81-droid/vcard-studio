@@ -110,12 +110,21 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 export default function AdminForm({
   initial = null,
   cardId,
+  owners = [],
+  defaultOwner = '',
+  costNote = null,
 }: {
   initial?: BusinessFull | null;
   cardId?: string;
+  /** Who this card may belong to. A reseller sees only their own customers. */
+  owners?: { id: string; label: string }[];
+  defaultOwner?: string;
+  /** e.g. "This card will cost you ₹200 from your wallet." */
+  costNote?: string | null;
 }) {
   const router = useRouter();
   const editing = !!cardId;
+  const [ownerId, setOwnerId] = useState(defaultOwner);
 
   const [tab, setTab] = useState<Tab>('Basics');
   const [showPreview, setShowPreview] = useState(false);
@@ -205,6 +214,11 @@ export default function AdminForm({
     () => ({
       id: cardId ?? 'preview',
       owner_id: null,
+      // A preview is never expired or suspended — it is a picture of the card,
+      // not the card, so the states that would hide it do not apply.
+      expires_at: null,
+      grace_until: null,
+      suspended_at: null,
       slug,
       custom_domain: customDomain || null,
       name: name || 'Your Business Name',
@@ -306,6 +320,7 @@ export default function AdminForm({
         review_headline: reviewHeadline,
         review_thanks: reviewThanks,
         ...(editing ? { slug: customSlug } : {}),
+        ...(!editing && ownerId ? { owner_id: ownerId } : {}),
         logo_url: logoUrl, cover_url: coverUrl, cover_type: coverType,
         email, phone, whatsapp, address, website,
         custom_domain: customDomain, theme_color: themeColor,
@@ -332,6 +347,27 @@ export default function AdminForm({
 
   const form = (
     <form onSubmit={submit} className="space-y-5">
+      {!editing && (owners.length > 0 || costNote) && (
+        <div className="card-panel space-y-2 p-4">
+          {owners.length > 0 && (
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-slate-500">
+                Who is this card for?
+              </span>
+              <select
+                value={ownerId}
+                onChange={(e) => setOwnerId(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+              >
+                {owners.map((o) => (
+                  <option key={o.id} value={o.id}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          {costNote && <p className="text-sm text-slate-600">{costNote}</p>}
+        </div>
+      )}
       <div className="no-scrollbar sticky top-0 z-10 -mx-1 flex gap-1 overflow-x-auto bg-slate-100/95 px-1 py-2 backdrop-blur">
         {TABS.map((t) => (
           <button key={t} type="button" onClick={() => setTab(t)}

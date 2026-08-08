@@ -28,14 +28,42 @@ df -h / 2>/dev/null
 echo "--- swap ---"
 swapon --show 2>/dev/null || echo "no swap configured"
 
-line "WEB SERVER"
-for s in nginx apache2 httpd caddy openlitespeed lshttpd; do
+line "WHO OWNS PORT 80 AND 443  (this decides the whole plan)"
+# The single most important question. A previous audit found Traefik holding
+# both ports with nginx stopped — writing an nginx block on that server would
+# have produced a site that never answered, and the mistake would have looked
+# like a DNS problem for hours.
+ss -tlnp 2>/dev/null | grep -E ':80\s|:443\s' || netstat -tlnp 2>/dev/null | grep -E ':80\s|:443\s' || echo "could not read listeners (try with sudo)"
+
+line "WEB SERVER / PROXY"
+for s in nginx apache2 httpd caddy traefik openlitespeed lshttpd; do
   if command -v "$s" >/dev/null 2>&1 || systemctl list-units --type=service 2>/dev/null | grep -q "$s"; then
     echo "found: $s"
     systemctl is-active "$s" 2>/dev/null | sed "s/^/  status: /"
   fi
 done
 nginx -v 2>&1 | sed 's/^/nginx version: /'
+
+line "DOCKER  (Traefik usually lives here)"
+if command -v docker >/dev/null 2>&1; then
+  docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}' 2>/dev/null || echo "docker present but not readable as this user"
+  echo "--- compose files ---"
+  find / -maxdepth 5 -name 'docker-compose*.y*ml' -not -path '*/node_modules/*' 2>/dev/null | head -10
+else
+  echo "docker not installed"
+fi
+
+line "TRAEFIK CONFIG  (read-only; we must not touch these)"
+find / -maxdepth 6 \( -name 'traefik*.y*ml' -o -name 'traefik*.toml' -o -name 'dynamic*.y*ml' \) -not -path '*/node_modules/*' 2>/dev/null | head -10
+echo "--- md5 of each, so we can prove afterwards that we changed nothing ---"
+find / -maxdepth 6 \( -name 'traefik*.y*ml' -o -name 'traefik*.toml' -o -name 'dynamic*.y*ml' \) -not -path '*/node_modules/*' 2>/dev/null | head -10 | xargs -r md5sum 2>/dev/null
+
+line "WHAT IS ALREADY RUNNING  (the old vCard app lives here too)"
+if command -v pm2 >/dev/null 2>&1; then pm2 list 2>/dev/null; else echo "pm2 not installed"; fi
+echo "--- node processes ---"
+ps aux 2>/dev/null | grep -E '[n]ode|[n]ext' | head -10
+echo "--- our own systemd units ---"
+systemctl list-units --type=service 2>/dev/null | grep -iE 'vcard|next|card' || echo "none named vcard/next/card"
 
 line "CONTROL PANEL  (changes the safe procedure completely)"
 for p in /usr/local/cpanel /usr/local/directadmin /usr/local/cwp /usr/local/hestia \

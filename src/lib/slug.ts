@@ -1,15 +1,22 @@
 /**
  * Turns "Happy Frame Studios!" into "happy-frame-studios".
- * Keeps unicode letters so Hindi/regional business names still produce
- * a usable slug instead of collapsing to an empty string.
+ *
+ * Keeps unicode letters AND marks, so Devanagari survives. This mattered more
+ * than it looks: in Hindi and Marathi the vowel signs (ी ु ा) are marks, not
+ * letters, so a letters-only rule turned "मेरी दुकान" into "म-र-द-क-न" — the
+ * consonants with hyphens where the vowels used to be. Unreadable, and nobody
+ * would have spotted it until a shopkeeper saw their own name mangled.
+ *
+ * The combining-accent strip is limited to U+0300–U+036F, which is Latin
+ * accents only and leaves Indic marks alone.
  */
 export function slugify(input: string): string {
   return input
     .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '') // strip combining accents
+    .replace(/[̀-ͯ]/g, '') // Latin accents: café -> cafe
     .toLowerCase()
     .trim()
-    .replace(/[^\p{L}\p{N}]+/gu, '-') // anything not a letter/number -> hyphen
+    .replace(/[^\p{L}\p{N}\p{M}]+/gu, '-') // letters, numbers and marks survive
     .replace(/-{2,}/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 60);

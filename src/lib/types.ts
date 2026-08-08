@@ -114,6 +114,18 @@ export interface Business {
 
   published: boolean;
   view_count: number;
+
+  /** Paid up to. Null means it never expires — our own cards, lifetime deals. */
+  expires_at: string | null;
+  /** Set when a renewal could not be paid; the deadline before suspension. */
+  grace_until: string | null;
+  /**
+   * Set when grace ran out. A suspended card stays published on purpose — it
+   * keeps answering its printed QR code and shows our contact details instead
+   * of the business's, so the scan reaches us rather than dying.
+   */
+  suspended_at: string | null;
+
   created_at: string;
   updated_at: string;
 }

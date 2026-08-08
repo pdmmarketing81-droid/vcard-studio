@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { isAdminRequest } from '@/lib/auth';
+import { guardApi } from '@/lib/auth';
 import { uniqueSlug, CHILD_TABLES } from '@/lib/adminCards';
 
 /**
@@ -14,9 +14,8 @@ import { uniqueSlug, CHILD_TABLES } from '@/lib/adminCards';
  * silently going live on someone else's domain would be a nasty surprise.
  */
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-  if (!isAdminRequest(req)) {
-    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
-  }
+  const gate = await guardApi();
+  if ('response' in gate) return gate.response;
 
   const db = supabaseAdmin();
 

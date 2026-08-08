@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { isAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -30,7 +30,7 @@ function Stars({ n }: { n: number }) {
 }
 
 export default async function FeedbackInbox() {
-  if (!isAdmin()) redirect('/admin/login');
+  await requireAdmin();
 
   const { data, error } = await supabaseAdmin()
     .from('feedback')

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { isAdminRequest } from '@/lib/auth';
+import { guardApi, canManageCard } from '@/lib/auth';
 import { businessRow, uniqueSlug, writeChildren, revalidateCard } from '@/lib/adminCards';
 
 const FULL_SELECT = `
@@ -18,9 +18,8 @@ type Ctx = { params: { id: string } };
 
 /** Full card including every child row — this is what the edit form loads. */
 export async function GET(req: Request, { params }: Ctx) {
-  if (!isAdminRequest(req)) {
-    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
-  }
+  const gate = await guardApi('main_admin', 'sub_admin', 'end_user');
+  if ('response' in gate) return gate.response;
 
   const { data, error } = await supabaseAdmin()
     .from('businesses')
@@ -28,15 +27,23 @@ export async function GET(req: Request, { params }: Ctx) {
     .eq('id', params.id)
     .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[get card]', error);
+    return NextResponse.json({ error: 'Could not load that card.' }, { status: 500 });
+  }
   if (!data) return NextResponse.json({ error: 'Card not found' }, { status: 404 });
+
+  const owner = (data as { owner_id: string | null }).owner_id;
+  if (!(await canManageCard(gate.profile, owner))) {
+    return NextResponse.json({ error: 'Card not found' }, { status: 404 });
+  }
+
   return NextResponse.json({ card: data });
 }
 
 export async function PATCH(req: Request, { params }: Ctx) {
-  if (!isAdminRequest(req)) {
-    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
-  }
+  const gate = await guardApi('main_admin', 'sub_admin', 'end_user');
+  if ('response' in gate) return gate.response;
 
   const body = await req.json().catch(() => null);
   if (!body?.name) {
@@ -46,17 +53,24 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const db = supabaseAdmin();
   const { data: existing } = await db
     .from('businesses')
-    .select('id, slug, custom_domain')
+    .select('id, slug, custom_domain, owner_id')
     .eq('id', params.id)
     .maybeSingle();
 
   if (!existing) return NextResponse.json({ error: 'Card not found' }, { status: 404 });
+  if (!(await canManageCard(gate.profile, existing.owner_id))) {
+    return NextResponse.json({ error: 'Card not found' }, { status: 404 });
+  }
 
-  // The slug is part of a link that may already be printed on a card or a
-  // standee, so it only changes when the admin explicitly asks for it.
-  const slug = body.slug && body.slug !== existing.slug
-    ? await uniqueSlug(db, body.slug, existing.id)
-    : existing.slug;
+  /* The slug is in a link that may already be printed on a card, a standee or
+     a shop window. A main admin can still change it deliberately; nobody else
+     can, because the person most likely to try is the one who does not know
+     the QR codes are already out there. */
+  const mayChangeSlug = gate.profile.role === 'main_admin';
+  const slug =
+    mayChangeSlug && body.slug && body.slug !== existing.slug
+      ? await uniqueSlug(db, body.slug, existing.id)
+      : existing.slug;
 
   const { data: updated, error } = await db
     .from('businesses')

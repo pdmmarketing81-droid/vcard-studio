@@ -15,6 +15,27 @@ export function absoluteUrl(path = ''): string {
   return `${proto}://${host}${path}`;
 }
 
+/**
+ * A "where to go next" value that came from the address bar, made safe.
+ *
+ * Anything that could send someone off this site is thrown away. Without this,
+ * `?next=https://not-us.example` turns our own login page into a way to bounce
+ * people somewhere else — with our domain in the link they clicked, which is
+ * exactly what makes that trick work.
+ *
+ * Rejected: absolute URLs, protocol-relative `//evil.com`, and anything not
+ * starting with a single slash. Backslashes go too — some browsers read
+ * `/\evil.com` as protocol-relative.
+ */
+export function safeNext(value: string | undefined, fallback = '/after-login'): string {
+  if (!value) return fallback;
+  const v = value.trim();
+  if (!v.startsWith('/')) return fallback;
+  if (v.startsWith('//') || v.startsWith('/\\')) return fallback;
+  if (v.includes('://')) return fallback;
+  return v;
+}
+
 export function currentHost(): string {
   const h = headers();
   return (h.get('x-forwarded-host') ?? h.get('host') ?? '')

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { notFound } from 'next/navigation';
 import CardView from '@/components/CardView';
+import SuspendedCard from '@/components/SuspendedCard';
 import { getBusinessBySlug, recordView } from '@/lib/queries';
 import { absoluteUrl } from '@/lib/url';
 
@@ -48,7 +49,12 @@ export default async function CardPage({ params }: Props) {
   const business = await getBusinessBySlug(params.slug);
   if (!business) notFound();
 
+  // Counted either way. A scan of a paused card is exactly the signal that
+  // tells us the QR is still out there being used — and it is the argument
+  // for getting it renewed.
   void recordView(business.slug);
+
+  if (business.suspended_at) return <SuspendedCard business={business} />;
 
   return (
     <CardView business={business} cardUrl={absoluteUrl(`/${business.slug}`)} />

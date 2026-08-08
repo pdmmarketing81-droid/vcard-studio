@@ -42,7 +42,25 @@ export default function ReviewFunnel({ business: b }: { business: ReviewBusiness
   const fileRef = useRef<HTMLInputElement>(null);
 
   const brand = b.theme_color || '#0f766e';
-  const goesToGoogle = (n: number) => n >= b.review_threshold && !!b.google_review_url;
+
+  /* A card can be saved with junk in the Google field — a phone number, a
+     half-typed address. Truthiness is not enough: redirecting to a non-URL
+     dumps the visitor on a broken page and the rating is lost with them.
+     Anything that isn't a real http(s) address is treated as "no Google link",
+     which quietly routes the visitor to the private form instead. The owner
+     sees the feedback either way; nobody hits a dead end. */
+  const googleUrl = (() => {
+    const raw = b.google_review_url?.trim();
+    if (!raw) return null;
+    try {
+      const u = new URL(raw);
+      return u.protocol === 'http:' || u.protocol === 'https:' ? u.href : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const goesToGoogle = (n: number) => n >= b.review_threshold && !!googleUrl;
 
   /* ---------------------------- star tap ---------------------------- */
   function pickStar(n: number) {
@@ -65,7 +83,7 @@ export default function ReviewFunnel({ business: b }: { business: ReviewBusiness
     } catch {
       /* the visitor matters more than the log — redirect regardless */
     }
-    window.location.replace(b.google_review_url!);
+    window.location.replace(googleUrl!);
   }
 
   /* --------------------------- attachments -------------------------- */

@@ -1,7 +1,8 @@
 import Link from 'next/link';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import AdminForm from '@/components/AdminForm';
-import { isAdmin } from '@/lib/auth';
+import { requireAdmin, canManageCard } from '@/lib/auth';
+import { homeFor } from '@/lib/session';
 import { supabaseAdmin } from '@/lib/supabase';
 import type { BusinessFull } from '@/lib/types';
 
@@ -23,7 +24,7 @@ const sorted = <T extends Sortable>(rows: T[] | null) =>
   (rows ?? []).slice().sort((a, b) => a.sort_order - b.sort_order);
 
 export default async function EditCardPage({ params }: { params: { id: string } }) {
-  if (!isAdmin()) redirect('/admin/login');
+  const me = await requireAdmin('main_admin', 'sub_admin', 'end_user');
 
   const { data } = await supabaseAdmin()
     .from('businesses')
@@ -32,6 +33,12 @@ export default async function EditCardPage({ params }: { params: { id: string } 
     .maybeSingle();
 
   if (!data) notFound();
+
+  // Someone else's card is not "forbidden", it is "not found". Telling a
+  // stranger that a card exists but is off limits confirms it exists.
+  if (!(await canManageCard(me, (data as { owner_id: string | null }).owner_id))) {
+    notFound();
+  }
 
   const raw = data as unknown as BusinessFull;
   const card: BusinessFull = {
@@ -61,7 +68,7 @@ export default async function EditCardPage({ params }: { params: { id: string } 
           <Link href={`/${card.slug}`} target="_blank" className="text-sm font-semibold text-slate-500 hover:text-slate-900">
             Open ↗
           </Link>
-          <Link href="/admin" className="text-sm font-semibold text-slate-500 hover:text-slate-900">
+          <Link href={homeFor(me.role)} className="text-sm font-semibold text-slate-500 hover:text-slate-900">
             All cards
           </Link>
         </div>

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { notFound } from 'next/navigation';
 import CardView from '@/components/CardView';
+import SuspendedCard from '@/components/SuspendedCard';
 import { getBusinessByDomain, recordView } from '@/lib/queries';
 import { absoluteUrl } from '@/lib/url';
 
@@ -38,6 +39,8 @@ export default async function CustomDomainCard({ params }: Props) {
   if (!business) notFound();
 
   void recordView(business.slug);
+
+  if (business.suspended_at) return <SuspendedCard business={business} />;
 
   // On a custom domain the card lives at the root.
   return <CardView business={business} cardUrl={absoluteUrl('/')} />;

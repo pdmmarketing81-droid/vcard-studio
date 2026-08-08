@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
-import { isAdminRequest } from '@/lib/auth';
+import { guardApi } from '@/lib/auth';
+import { putMedia, sniffType, mediaPath } from '@/lib/storage';
+import { checkDimensions, stripMetadata } from '@/lib/imageSafety';
 
-const MAX_BYTES = 8 * 1024 * 1024; // 8 MB — comfortably inside the free tier
-const ALLOWED = /^(image\/(png|jpeg|jpg|webp|gif|svg\+xml)|video\/(mp4|webm))$/;
+const MAX_BYTES = 8 * 1024 * 1024;
 
 export async function POST(req: Request) {
-  if (!isAdminRequest(req)) {
-    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
-  }
+  const gate = await guardApi();
+  if ('response' in gate) return gate.response;
 
   const form = await req.formData();
   const file = form.get('file');
@@ -23,25 +22,34 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  if (!ALLOWED.test(file.type)) {
+
+  // The type is read from the file's own bytes, not from what the browser
+  // claimed. Anything we don't recognise is refused rather than guessed at.
+  const raw = Buffer.from(await file.arrayBuffer());
+  const type = sniffType(raw);
+  if (!type) {
     return NextResponse.json(
-      { error: `Unsupported file type: ${file.type}` },
+      { error: 'Unsupported file. Please upload a JPG, PNG, WebP, GIF, MP4 or WebM.' },
       { status: 400 }
     );
   }
 
-  const ext = (file.name.split('.').pop() ?? 'bin').toLowerCase();
-  const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  // A small file can still declare enormous dimensions. Caught from the header,
+  // before anything tries to draw it.
+  const tooBig = checkDimensions(raw, type);
+  if (tooBig) return NextResponse.json({ error: tooBig }, { status: 400 });
 
-  const db = supabaseAdmin();
-  const { error } = await db.storage
-    .from('card-media')
-    .upload(path, file, { contentType: file.type, upsert: false });
+  // EXIF out. Business photos are usually taken on a phone, and phones write
+  // the location into the file.
+  const buffer = stripMetadata(raw, type);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    const url = await putMedia(mediaPath(folder, type), buffer, type);
+    return NextResponse.json({ url });
+  } catch (e) {
+    // The underlying message can name buckets, keys and hosts. It belongs in
+    // our logs, not in a response anyone can trigger.
+    console.error('[upload]', e);
+    return NextResponse.json({ error: 'Upload failed. Please try again.' }, { status: 500 });
   }
-
-  const { data } = db.storage.from('card-media').getPublicUrl(path);
-  return NextResponse.json({ url: data.publicUrl });
 }

@@ -1,29 +1,26 @@
 import { NextResponse } from 'next/server';
-import { ADMIN_COOKIE, tokenFor, isValidToken } from '@/lib/auth';
 
-export async function POST(req: Request) {
-  const { password } = await req.json().catch(() => ({ password: '' }));
-  const token = tokenFor(String(password ?? ''));
-
-  if (!isValidToken(token)) {
-    // Small delay blunts trivial brute-forcing of the shared password.
-    await new Promise((r) => setTimeout(r, 600));
-    return NextResponse.json({ error: 'Wrong password' }, { status: 401 });
-  }
-
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set(ADMIN_COOKIE, token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30,
-  });
+/**
+ * Retired.
+ *
+ * This used to accept a single shared password and set a cookie that granted
+ * full admin. Nothing checks that cookie any more, but the endpoint is answered
+ * explicitly rather than deleted so that an old client, a stale tab or a
+ * bookmarked script gets a clear answer instead of a confusing 404 — and so
+ * that anyone reading the code sees that the shared password is gone on
+ * purpose, not by accident.
+ *
+ * The old cookie is cleared on the way out; there is no reason to leave a
+ * stale credential sitting in anyone's browser.
+ */
+function gone() {
+  const res = NextResponse.json(
+    { error: 'The shared admin password has been removed. Please sign in at /login.' },
+    { status: 410 }
+  );
+  res.cookies.delete('vs_admin');
   return res;
 }
 
-export async function DELETE() {
-  const res = NextResponse.json({ ok: true });
-  res.cookies.delete(ADMIN_COOKIE);
-  return res;
-}
+export const POST = gone;
+export const DELETE = gone;

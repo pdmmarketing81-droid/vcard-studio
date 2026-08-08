@@ -1,6 +1,8 @@
+import ImpersonationBar from '@/components/ImpersonationBar';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { isAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
+import SignOutButton from '@/components/SignOutButton';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getTemplate } from '@/lib/templates';
 import { PublishToggle, DuplicateButton, DeleteButton } from '@/components/admin/CardActions';
@@ -19,7 +21,7 @@ type Row = {
 };
 
 export default async function AdminHome() {
-  if (!isAdmin()) redirect('/admin/login');
+  const me = await requireAdmin();
 
   const { data, error } = await supabaseAdmin()
     .from('businesses')
@@ -30,15 +32,43 @@ export default async function AdminHome() {
   const live = cards.filter((c) => c.published).length;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
+    <>
+      <ImpersonationBar />
+      <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Cards</h1>
           <p className="text-sm text-slate-500">
             {cards.length} total · {live} live
           </p>
+          {/* Who you are signed in as. Worth showing on every screen that can
+              change things: with roles and a login-as feature coming, "which
+              account am I actually using right now" stops being obvious. */}
+          <p className="mt-1 text-xs text-slate-400">
+            {me.email} · main admin
+            <span className="mx-1.5">·</span>
+            <SignOutButton className="underline underline-offset-2 hover:text-slate-600" />
+          </p>
         </div>
         <div className="flex items-center gap-3">
+          <Link
+            href="/admin/users"
+            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+          >
+            People
+          </Link>
+          <Link
+            href="/admin/plans"
+            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+          >
+            Plans
+          </Link>
+          <Link
+            href="/admin/audit"
+            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+          >
+            Activity
+          </Link>
           <Link
             href="/admin/feedback"
             className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
@@ -111,5 +141,6 @@ export default async function AdminHome() {
         ))}
       </div>
     </div>
+    </>
   );
 }

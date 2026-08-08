@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { putMedia, sniffType, mediaPath, extensionFor } from '@/lib/storage';
+import { checkDimensions, stripMetadata } from '@/lib/imageSafety';
+import { rateLimit, callerKey, tooManyRequests } from '@/lib/rateLimit';
 import { sendMail, feedbackEmail, type MailAttachment } from '@/lib/mail';
 import type { FeedbackAttachment } from '@/lib/types';
 
@@ -18,11 +21,21 @@ import type { FeedbackAttachment } from '@/lib/types';
 
 const MAX_FILES = 5;
 const MAX_TOTAL_BYTES = 15 * 1024 * 1024;
-const ALLOWED = /^(image\/(png|jpe?g|webp|gif|heic|heif)|video\/(mp4|webm|quicktime))$/i;
 
 const clip = (v: unknown, max: number): string | null => {
   const s = typeof v === 'string' ? v.trim() : '';
   return s === '' ? null : s.slice(0, max);
+};
+
+/**
+ * A filename chosen by an anonymous visitor ends up in an email header and in
+ * the admin's list, so it is rebuilt from scratch rather than trusted: strip
+ * anything that isn't plain, drop the claimed extension, and use the one that
+ * matches what the bytes actually are.
+ */
+const safeName = (raw: string, type: string): string => {
+  const stem = raw.replace(/\.[^.]*$/, '').replace(/[^a-z0-9 _-]/gi, '').trim().slice(0, 60);
+  return `${stem || 'attachment'}.${extensionFor(type)}`;
 };
 
 interface Parsed {
@@ -70,6 +83,15 @@ async function parse(req: Request): Promise<Parsed | null> {
 }
 
 export async function POST(req: Request, { params }: { params: { slug: string } }) {
+  /* Anyone with the QR code can reach this, with no login and no cost to them.
+     Left open it is a way to fill the owner's inbox, fill our storage, and run
+     up an email bill — all from one phone. Twenty in ten minutes is far more
+     than any real shop sees and far less than an attack needs. */
+  const limit = rateLimit(callerKey(req, 'review'), { max: 20, windowMs: 10 * 60_000 });
+  if (!limit.ok) {
+    return tooManyRequests(limit.retryAfter, 'Too many reviews from here. Please try again shortly.');
+  }
+
   const input = await parse(req);
   if (!input || !Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5) {
     return NextResponse.json({ error: 'rating must be 1–5' }, { status: 400 });
@@ -86,46 +108,11 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  /* ------------------------- attachments ------------------------- */
-  const attachments: FeedbackAttachment[] = [];
-  const mailFiles: MailAttachment[] = [];
-  let bytes = 0;
-
-  for (const file of input.files) {
-    if (!ALLOWED.test(file.type)) continue;
-    bytes += file.size;
-    if (bytes > MAX_TOTAL_BYTES) break;
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const ext = (file.name.split('.').pop() ?? 'bin').toLowerCase().slice(0, 8);
-    const path = `feedback/${business.id}/${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2, 8)}.${ext}`;
-
-    // Stored as well as emailed: the inbox should still show the photo months
-    // later, when the email has long been deleted.
-    const { error } = await db.storage
-      .from('card-media')
-      .upload(path, buffer, { contentType: file.type, upsert: false });
-
-    if (!error) {
-      const { data } = db.storage.from('card-media').getPublicUrl(path);
-      attachments.push({
-        url: data.publicUrl,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-      });
-    }
-
-    mailFiles.push({
-      filename: file.name,
-      content: buffer,
-      contentType: file.type,
-    });
-  }
-
-  /* ---------------------------- store ---------------------------- */
+  /* ---------------------------- store ----------------------------
+     Written BEFORE the uploads on purpose. Attachments can take several
+     seconds on mobile data, and if the visitor closes the tab mid-upload the
+     request dies with it. Saving the rating and the words first means the
+     part that actually matters survives; the photos are attached after. */
   const { data: row, error } = await db
     .from('feedback')
     .insert({
@@ -136,16 +123,65 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
       email: input.email,
       message: input.message,
       went_to_google: input.wentToGoogle,
-      attachments,
+      attachments: [],
     })
     .select('id')
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // Postgres errors name tables, columns and constraints. Useful to us,
+    // a free map of the schema to anyone else.
+    console.error('[review insert]', error);
+    return NextResponse.json({ error: 'Could not save your feedback.' }, { status: 500 });
+  }
 
   // Visitors who went to Google are counted, not forwarded.
   if (input.wentToGoogle || !business.feedback_email) {
     return NextResponse.json({ ok: true });
+  }
+
+  /* ------------------------- attachments ------------------------- */
+  const attachments: FeedbackAttachment[] = [];
+  const mailFiles: MailAttachment[] = [];
+  let bytes = 0;
+
+  for (const file of input.files) {
+    bytes += file.size;
+    if (bytes > MAX_TOTAL_BYTES) break;
+
+    // Anyone with the link can post here, so the type comes from the bytes
+    // rather than from the browser's claim about them.
+    const raw = Buffer.from(await file.arrayBuffer());
+    const type = sniffType(raw);
+    if (!type) continue;
+
+    // Silently skipped rather than refused: the rating and the words are
+    // already saved, and failing the whole submission over one odd photo
+    // would lose the feedback that actually matters.
+    if (checkDimensions(raw, type)) continue;
+
+    /* This is the one that matters most on this route. A customer photographing
+       a shop is standing in it, and their phone writes those coordinates into
+       the file. That photo then goes into an email and onto a public URL. */
+    const buffer = stripMetadata(raw, type);
+    const name = safeName(file.name, type);
+
+    // Stored as well as emailed: the inbox should still show the photo months
+    // later, when the email has long been deleted. A storage failure must not
+    // cost us the email, so it is caught here and the attachment still rides
+    // along in the message.
+    try {
+      const url = await putMedia(mediaPath(`feedback/${business.id}`, type), buffer, type);
+      attachments.push({ url, name, type, size: file.size });
+    } catch (e) {
+      console.error('[review attachment]', e);
+    }
+
+    mailFiles.push({ filename: name, content: buffer, contentType: type });
+  }
+
+  if (attachments.length) {
+    await db.from('feedback').update({ attachments }).eq('id', row.id);
   }
 
   /* ----------------------------- mail ----------------------------- */

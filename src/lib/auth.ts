@@ -1,37 +1,78 @@
-import { createHash } from 'crypto';
-import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { NextResponse } from 'next/server';
+import { currentProfile, homeFor, type Profile, type Role } from './session';
 
-export const ADMIN_COOKIE = 'vs_admin';
+/**
+ * Who may use the admin screens.
+ *
+ * This used to be a single shared password hashed into a cookie. That worked
+ * while this was one person's internal tool and stops working the moment there
+ * is more than one kind of user: a shared secret cannot tell a reseller from
+ * their customer, cannot be revoked for one person, and leaves no trace of who
+ * did what. Both are now decided by the signed-in account's role.
+ *
+ * The password path has been removed rather than left as a fallback. A back
+ * door that still works is not a back door you have closed.
+ */
 
-function expectedToken(): string {
-  const pw = process.env.ADMIN_PASSWORD;
-  if (!pw) throw new Error('ADMIN_PASSWORD is not set in the environment.');
-  return createHash('sha256').update(pw).digest('hex');
+/** For Server Components: the profile, or off to login / their own home. */
+export async function requireAdmin(...allowed: Role[]): Promise<Profile> {
+  const roles = allowed.length ? allowed : (['main_admin'] as Role[]);
+  const profile = await currentProfile();
+
+  if (!profile) redirect('/login');
+  if (profile.suspended) redirect('/suspended');
+  if (!roles.includes(profile.role)) redirect(homeFor(profile.role));
+
+  return profile;
 }
 
-export function tokenFor(password: string): string {
-  return createHash('sha256').update(password).digest('hex');
-}
+/**
+ * For Route Handlers. Returns either the profile or a ready-made response to
+ * hand straight back — so a forgotten check reads as a type error rather than
+ * as an open endpoint.
+ *
+ *   const gate = await guardApi();
+ *   if ('response' in gate) return gate.response;
+ *   // gate.profile is available from here
+ */
+export async function guardApi(
+  ...allowed: Role[]
+): Promise<{ profile: Profile } | { response: NextResponse }> {
+  const roles = allowed.length ? allowed : (['main_admin'] as Role[]);
+  const profile = await currentProfile();
 
-/** Constant-time-ish compare; both sides are fixed-length hex digests. */
-export function isValidToken(token: string | undefined): boolean {
-  if (!token) return false;
-  const expected = expectedToken();
-  if (token.length !== expected.length) return false;
-  let diff = 0;
-  for (let i = 0; i < token.length; i++) {
-    diff |= token.charCodeAt(i) ^ expected.charCodeAt(i);
+  if (!profile) {
+    return { response: NextResponse.json({ error: 'Please sign in.' }, { status: 401 }) };
   }
-  return diff === 0;
+  if (profile.suspended) {
+    return { response: NextResponse.json({ error: 'Account paused.' }, { status: 403 }) };
+  }
+  if (!roles.includes(profile.role)) {
+    return { response: NextResponse.json({ error: 'Not allowed.' }, { status: 403 }) };
+  }
+
+  return { profile };
 }
 
-export function isAdmin(): boolean {
-  return isValidToken(cookies().get(ADMIN_COOKIE)?.value);
-}
+/**
+ * May this person act on a card owned by `ownerId`?
+ *
+ * The same question the database asks in can_manage_user(), asked again here
+ * because the admin screens read with the service_role key, which switches RLS
+ * off. Two copies of one rule is a smell, but the alternative — trusting that
+ * every one of those reads remembered to scope itself — is worse. If this ever
+ * disagrees with the SQL, the SQL is right.
+ */
+export async function canManageCard(me: Profile, ownerId: string | null): Promise<boolean> {
+  if (me.role === 'main_admin') return true;
+  if (!ownerId) return false;          // unclaimed cards are ours alone
+  if (ownerId === me.id) return true;
+  if (me.role !== 'sub_admin') return false;
 
-/** For API routes: reads the cookie off the raw Request. */
-export function isAdminRequest(req: Request): boolean {
-  const raw = req.headers.get('cookie') ?? '';
-  const match = raw.match(new RegExp(`${ADMIN_COOKIE}=([^;]+)`));
-  return isValidToken(match?.[1]);
+  const { supabaseAdmin } = await import('./supabase');
+  const { data } = await supabaseAdmin()
+    .from('profiles').select('parent_id').eq('id', ownerId).maybeSingle();
+
+  return data?.parent_id === me.id;
 }

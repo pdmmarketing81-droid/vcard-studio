@@ -258,3 +258,147 @@ body {
   background-clip: text;
   color: transparent;
 }
+
+/* ═══════════════════════ Landing page ════════════════════════════
+   Kept out of @layer for the same reason as the button and panel
+   classes above: these are referenced from the marketing page and
+   Tailwind's scanner has no reason to keep them alive.               */
+
+@keyframes lpFloat  { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes lpEnter  { from { opacity: 0; transform: translateY(24px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes lpGlow   { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.85; } }
+@keyframes lpScroll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+
+/* Each floating card enters once, then breathes for ever. Two
+   animations on one element: the entrance runs to completion and the
+   float takes over, which is why the delays differ. */
+.lp-card {
+  opacity: 0;
+  animation: lpEnter 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+             lpFloat 5s ease-in-out infinite;
+}
+.lp-d1 { animation-delay: 0.25s, 0.95s; }
+.lp-d2 { animation-delay: 0.45s, 1.45s; }
+.lp-d3 { animation-delay: 0.65s, 1.95s; }
+.lp-d4 { animation-delay: 0.85s, 2.45s; }
+
+.lp-rise { opacity: 0; animation: lpEnter 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.lp-r1 { animation-delay: 0.05s; }
+.lp-r2 { animation-delay: 0.15s; }
+.lp-r3 { animation-delay: 0.25s; }
+
+.lp-glow { animation: lpGlow 7s ease-in-out infinite; }
+
+/* The strip of cards drifting up beside the phone. The list is
+   duplicated in the markup so the loop has no visible seam. */
+.lp-marquee { animation: lpScroll 26s linear infinite; }
+.lp-marquee-wrap:hover .lp-marquee { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-card, .lp-rise { opacity: 1; animation: none; }
+  .lp-marquee, .lp-glow { animation: none; }
+}
+
+/* Hero background. Three layers, all decorative and all pointer-events:none
+   so nothing here can eat a click meant for the buttons on top of it. */
+.lp-dots {
+  background-image: radial-gradient(circle, rgba(109, 40, 217, 0.22) 1.2px, transparent 1.2px);
+  background-size: 26px 26px;
+  -webkit-mask-image: radial-gradient(70% 55% at 50% 35%, #000 40%, transparent 100%);
+  mask-image: radial-gradient(70% 55% at 50% 35%, #000 40%, transparent 100%);
+}
+
+.lp-blob {
+  background: radial-gradient(closest-side, rgba(124, 58, 237, 0.55), transparent 72%);
+  filter: blur(18px);
+}
+
+/* The concentric rings are gone on purpose — they read as clutter behind the
+   cards rather than as a spotlight. The soft blobs do that job better. */
+
+@keyframes lpTilt { 0%, 100% { transform: perspective(1400px) rotateY(-6deg) rotateX(1.5deg) translateY(0); }
+                    50%      { transform: perspective(1400px) rotateY(-6deg) rotateX(1.5deg) translateY(-12px); } }
+.lp-tilt { animation: lpTilt 7s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) { .lp-tilt { animation: none; } }
+
+/* The 3D board in the hero. Real depth, not a drop shadow: a second slab sits
+   behind the face, offset along the direction the board is turned, so the eye
+   reads it as thickness. Rotating the parent moves both together. */
+.lp-stage  { perspective: 1600px; perspective-origin: 55% 40%; }
+.lp-board  { transform-style: preserve-3d; transform: rotateY(-13deg) rotateX(5deg); }
+.lp-board-face { transform: translateZ(14px); }
+.lp-board-edge { transform: translateZ(0); }
+
+@keyframes lpBoardIn {
+  from { opacity: 0; transform: rotateY(-26deg) rotateX(12deg) translateY(40px) scale(0.94); }
+  to   { opacity: 1; transform: rotateY(-13deg) rotateX(5deg) translateY(0) scale(1); }
+}
+@keyframes lpBoardIdle {
+  0%, 100% { transform: rotateY(-13deg) rotateX(5deg) translateY(0); }
+  50%      { transform: rotateY(-11deg) rotateX(4deg) translateY(-14px); }
+}
+.lp-board-anim {
+  opacity: 0;
+  animation: lpBoardIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.15s forwards,
+             lpBoardIdle 9s ease-in-out 1.05s infinite;
+}
+
+/* Chips lift off the board face so they read as sitting on top of it. */
+.lp-chip { transform: translateZ(34px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-board-anim { opacity: 1; animation: none; }
+}
+@media (max-width: 640px) {
+  .lp-board { transform: none; }
+  .lp-board-face, .lp-board-edge, .lp-chip { transform: none; }
+  .lp-board-anim { animation: lpBoardIn 0.7s ease-out forwards; }
+}
+
+/* ─────────────────────── Hero: drifting 3D ring ───────────────────────
+   Cards sit on the surface of a cylinder: each is turned by its own share
+   of 360° and then pushed out along Z by the radius. Rotating the parent
+   turns the whole cylinder, so they orbit rather than slide.
+
+   --lp-ring-r is set per breakpoint, because the radius has to shrink on a
+   phone or the far cards fall outside the viewport.                        */
+.lp-ring-stage { perspective: 1400px; perspective-origin: 50% 45%; }
+.lp-ring {
+  transform-style: preserve-3d;
+  animation: lpRingSpin 34s linear infinite;
+}
+.lp-ring-item {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+@keyframes lpRingSpin {
+  from { transform: rotateX(-7deg) rotateY(0deg); }
+  to   { transform: rotateX(-7deg) rotateY(-360deg); }
+}
+
+/* Hover to look at one properly. */
+.lp-ring-stage:hover .lp-ring { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-ring { animation: none; transform: rotateX(-7deg) rotateY(-20deg); }
+}
+
+/* Ring radius per breakpoint. Too large on a phone and the far cards leave
+   the screen; too small on desktop and they overlap into a solid blob. */
+.lp-ring { --ring-r: 210px; }
+@media (min-width: 640px)  { .lp-ring { --ring-r: 280px; } }
+@media (min-width: 1024px) { .lp-ring { --ring-r: 350px; } }
+@media (min-width: 1400px) { .lp-ring { --ring-r: 390px; } }
+
+/* The landing page uses the same face as everything else — it is served from
+   /public now, so it always arrives. Only the weights are pinned here, because
+   a marketing headline wants more weight than a card heading does. */
+.lp-page h1 { font-weight: 800; letter-spacing: -0.032em; }
+.lp-page h2 { font-weight: 800; letter-spacing: -0.022em; }
+.lp-page h3 { font-weight: 700; letter-spacing: -0.01em; }
+.lp-page { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
