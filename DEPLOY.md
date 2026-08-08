@@ -87,7 +87,16 @@ cd /var/www/wizart
 Then:
 
 ```bash
-npm ci --omit=dev || npm install --omit=dev
+npm install
+```
+
+**Not `--omit=dev`.** Tailwind, PostCSS and TypeScript live in devDependencies
+and are all needed *at build time* — leaving them out makes `next build` fail
+with a confusing PostCSS error. Once the build is done they can go:
+
+```bash
+# optional, after the build succeeds
+npm prune --omit=dev
 ```
 
 `node v22.23.1` is already system-wide and Next 14 is happy on it, so no nvm and
@@ -174,11 +183,11 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3211/
 This is the only step that touches Traefik's world, and it only **adds** a file.
 
 ```bash
-cat > /docker/traefik-cdmh/dynamic/wizart.yml <<EOF
+cat > /docker/traefik-cdmh/dynamic/wizart.yml <<'EOF'
 http:
   routers:
     wizart:
-      rule: "Host(\`$DOMAIN\`) || Host(\`www.$DOMAIN\`)"
+      rule: "Host(`wizart.pdmmarketing.in`)"
       entryPoints:
         - websecure
       tls:
@@ -193,6 +202,14 @@ EOF
 
 cat /docker/traefik-cdmh/dynamic/wizart.yml
 ```
+
+Two deliberate choices here. The heredoc is quoted (`<<'EOF'`), so the shell
+leaves the backticks alone instead of trying to run what is inside them — which
+means the hostname is written out literally rather than through `$DOMAIN`.
+
+And **no `www.` host.** Hostinger has no `www.wizart` record, so including it
+would make Let's Encrypt ask for a certificate covering a name that does not
+resolve, and the whole request fails — including the part that would have worked.
 
 Read it back and check the backticks came out as plain backticks around a bare
 hostname. **This is exactly where the existing `volt-pine.yml` looks wrong** —

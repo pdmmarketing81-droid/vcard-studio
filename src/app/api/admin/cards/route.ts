@@ -23,6 +23,14 @@ async function resolveOwner(
   const wanted = requested ? String(requested) : me.id;
 
   if (wanted === me.id) return { ownerId: me.id };
+
+  // A customer has nobody under them, so there is no owner they could name
+  // except themselves. Said plainly here rather than left to fall through the
+  // reseller branch below and fail for a reason that reads like a bug.
+  if (me.role === 'end_user') {
+    return { error: 'You can only make a card for yourself.' };
+  }
+
   if (me.role === 'main_admin') {
     const { data } = await db.from('profiles').select('id').eq('id', wanted).maybeSingle();
     return data ? { ownerId: wanted } : { error: 'That account does not exist.' };
@@ -37,8 +45,16 @@ async function resolveOwner(
   return { ownerId: wanted };
 }
 
+/* end_user is here because somebody who buys a card from the website has to be
+   able to make it. They were left out at first, when every card was made by an
+   admin or a reseller — which meant a paying customer landed on an empty page
+   with money in their wallet and no way to spend it.
+
+   Letting them in is safe on its own terms: resolveOwner() pins the card to
+   them, and debit_for_card() enforces the card_limit their plan set (1 for the
+   direct plan), so this cannot become a way to mint cards. */
 export async function POST(req: Request) {
-  const gate = await guardApi('main_admin', 'sub_admin');
+  const gate = await guardApi('main_admin', 'sub_admin', 'end_user');
   if ('response' in gate) return gate.response;
   const me = gate.profile;
 
@@ -117,7 +133,11 @@ export async function GET() {
   /* Read through the visitor's own session so the row-level policies decide
      what comes back. supabaseAdmin() would return every card in the system to
      whoever asked, and the scoping would have to be rewritten here — a second
-     copy of a rule that already exists in the database. */
+     copy of a rule that already exists in the database.
+
+     This only became true with migration 006. Until then the public-read
+     policy on businesses applied to signed-in users too, and since policies
+     are ORed, this endpoint handed every published card to every role. */
   const { data, error } = await supabaseServer()
     .from('businesses')
     .select(

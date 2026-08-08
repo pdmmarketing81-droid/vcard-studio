@@ -3,7 +3,9 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { requireAdmin } from '@/lib/auth';
 import { supabaseServer } from '@/lib/supabase-server';
+import { supabaseAdmin } from '@/lib/supabase';
 import SignOutButton from '@/components/SignOutButton';
+import CreateMyCard from '@/components/CreateMyCard';
 
 export const metadata: Metadata = { title: 'My card · vCard Studio' };
 export const dynamic = 'force-dynamic';
@@ -11,11 +13,16 @@ export const dynamic = 'force-dynamic';
 /**
  * The end user's home.
  *
- * Note what is *not* here: no filter on owner_id. The query asks for every
- * card and the database returns only the ones this person may see, because
- * can_manage_user() is baked into the policy. Filtering in the query as well
- * would look safer and would in fact be worse — it would put a second copy of
- * the rule somewhere it could quietly disagree with the first.
+ * No filter on owner_id here: the query asks for every card and the database
+ * returns only the ones this person may see. That is true — but only since
+ * migration 006.
+ *
+ * Before it, businesses also carried an unrestricted "published cards are
+ * public" policy, and Postgres ORs policies together, so this query returned
+ * every live card in the system to whoever asked. The comment that used to sit
+ * here asserted the opposite and was believed for weeks. Leaning on the
+ * database is still right; leaning on it without reading every policy on the
+ * table is not.
  */
 export default async function MyCards() {
   const me = await requireAdmin('end_user', 'sub_admin', 'main_admin');
@@ -26,6 +33,21 @@ export default async function MyCards() {
     .order('created_at', { ascending: false });
 
   const cards = data ?? [];
+
+  /* Whether this person is allowed to make a card themselves.
+     Terms sit on whoever pays. A customer who bought from the website has them
+     on their own profile; a customer a reseller signed up has none, because the
+     reseller pays and the reseller makes their card. So the presence of a terms
+     row is exactly the question "did you buy this yourself", and no extra flag
+     is needed to tell the two apart. */
+  const db = supabaseAdmin();
+  const [{ data: terms }, { data: charge }] = await Promise.all([
+    db.from('reseller_terms').select('card_limit').eq('profile_id', me.id).maybeSingle(),
+    db.rpc('card_charge_for', { p_profile: me.id }),
+  ]);
+
+  const limit = terms?.card_limit ?? null;
+  const mayCreate = !!terms && (limit === null || cards.length < limit);
 
   return (
     <>
@@ -42,14 +64,25 @@ export default async function MyCards() {
         </p>
       </div>
 
-      {cards.length === 0 ? (
-        <div className="card-panel p-6 text-sm text-slate-600">
-          <p className="font-semibold text-slate-800">No card yet.</p>
-          <p className="mt-1">
-            Whoever set up your account will add it. Once it is ready it will appear here
-            and you will be able to edit it yourself.
-          </p>
+      {/* First thing on the page, above the list, and not behind a button. The
+          whole failure this replaces was a paid customer not finding the way
+          forward — so it is the way forward, sitting in plain sight. */}
+      {mayCreate && (
+        <div className="mb-6">
+          <CreateMyCard charge={Number(charge ?? 0)} />
         </div>
+      )}
+
+      {cards.length === 0 ? (
+        !mayCreate && (
+          <div className="card-panel p-6 text-sm text-slate-600">
+            <p className="font-semibold text-slate-800">No card yet.</p>
+            <p className="mt-1">
+              Whoever set up your account will add it. Once it is ready it will appear here
+              and you will be able to edit it yourself.
+            </p>
+          </div>
+        )
       ) : (
         <>
         <p className="mb-3 text-sm text-slate-600">
