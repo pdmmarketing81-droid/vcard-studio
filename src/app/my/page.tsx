@@ -5,6 +5,7 @@ import { supabaseServer } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase';
 import CreateMyCard from '@/components/CreateMyCard';
 import PublishButton from '@/components/PublishButton';
+import RenewButton from '@/components/RenewButton';
 
 export const metadata: Metadata = { title: 'My card · vCard Studio' };
 export const dynamic = 'force-dynamic';
@@ -28,7 +29,7 @@ export default async function MyCards() {
 
   const { data } = await supabaseServer()
     .from('businesses')
-    .select('id, slug, name, logo_url, published, view_count')
+    .select('id, slug, name, logo_url, published, view_count, expires_at, grace_until, suspended_at')
     .order('created_at', { ascending: false });
 
   const cards = data ?? [];
@@ -47,6 +48,17 @@ export default async function MyCards() {
 
   const limit = terms?.card_limit ?? null;
   const mayCreate = !!terms && (limit === null || cards.length < limit);
+
+  /* What renewing costs this person. Asked once for the page rather than per
+     card, because the charge is a property of their terms, not of the card. */
+  const { data: renewCost } = await db.rpc('renewal_charge_for', { p_profile: me.id });
+  const renewal = Number(renewCost ?? 0);
+
+  /** Within a month of running out, or already past it. */
+  const dueSoon = (c: { expires_at: string | null; suspended_at: string | null }) =>
+    !!c.suspended_at ||
+    (!!c.expires_at &&
+      new Date(c.expires_at).getTime() - Date.now() < 30 * 24 * 60 * 60 * 1000);
 
   return (
     <>
@@ -113,7 +125,25 @@ export default async function MyCards() {
                   /{c.slug} · {c.view_count} views
                   {!c.published && ' · not live'}
                 </p>
+                {c.suspended_at ? (
+                  <p className="mt-1 text-xs font-semibold text-rose-600">
+                    Paused — its link now shows our contact details instead
+                  </p>
+                ) : c.expires_at && dueSoon(c) ? (
+                  <p className="mt-1 text-xs font-semibold text-amber-700">
+                    Renews on{' '}
+                    {new Date(c.expires_at).toLocaleDateString('en-IN', {
+                      day: 'numeric', month: 'short', year: 'numeric',
+                    })}
+                  </p>
+                ) : null}
               </div>
+
+              {/* Only when it is actually near. A permanent Renew button trains
+                  people to ignore it, and then it is not there when it matters. */}
+              {renewal > 0 && dueSoon(c) && (
+                <RenewButton cardId={c.id} amount={renewal} overdue={!!c.suspended_at} />
+              )}
               {/* Edit first, and in the darker colour. This is the customer's
                   own dashboard — the thing they came here to do is change
                   their card, not look at it. */}
