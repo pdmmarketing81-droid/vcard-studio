@@ -73,9 +73,19 @@ export async function POST(req: Request) {
      then published. Doing it the other way round would put a card in front of
      the public that has not been paid for — and taking it back down afterwards
      is a worse conversation than never showing it. */
+  const { data: reviewsOk } = await db.rpc('has_grant', {
+    p_profile: owner.ownerId,
+    p_key: 'reviews',
+  });
+
   const { data: business, error } = await db
     .from('businesses')
-    .insert({ ...businessRow(body, slug), owner_id: owner.ownerId, published: false })
+    .insert({
+      ...businessRow(body, slug),
+      ...(reviewsOk === true ? {} : { review_enabled: false }),
+      owner_id: owner.ownerId,
+      published: false,
+    })
     .select()
     .single();
 

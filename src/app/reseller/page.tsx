@@ -1,9 +1,7 @@
-import ImpersonationBar from '@/components/ImpersonationBar';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { requireAdmin } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import SignOutButton from '@/components/SignOutButton';
 import AddCustomer from '@/components/AddCustomer';
 import TopUpButton from '@/components/TopUpButton';
 
@@ -47,17 +45,9 @@ export default async function ResellerHome() {
 
   return (
     <>
-      <ImpersonationBar />
       <div className="mx-auto max-w-2xl px-4 py-8">
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Your business</h1>
-          <p className="mt-1 text-xs text-slate-400">
-            {me.email} · reseller
-            <span className="mx-1.5">·</span>
-            <SignOutButton className="underline underline-offset-2 hover:text-slate-600" />
-          </p>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-800">Your business</h1>
       </div>
 
       {/* ----------------------------- wallet ----------------------------- */}

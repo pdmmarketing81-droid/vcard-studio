@@ -10,6 +10,8 @@ export interface Plan {
   name: string;
   tagline: string | null;
   features: string[];
+  /** What the software actually switches on. `features` is only the sales copy. */
+  grants: { reviews?: boolean };
   price: number;
   period: 'once' | 'monthly' | 'yearly';
   opening_balance: number;
@@ -25,7 +27,7 @@ export interface Plan {
 }
 
 const blank = (audience: Plan['audience']): Plan => ({
-  id: '', slug: '', audience, name: '', tagline: null, features: [],
+  id: '', slug: '', audience, name: '', tagline: null, features: [], grants: {},
   price: 0, period: audience === 'direct' ? 'yearly' : 'once',
   opening_balance: 0, per_card_amount: 0, per_card_percent: 0, list_price: 0,
   card_period: 'yearly', renewal_amount: 0, card_limit: null,
@@ -193,6 +195,26 @@ export default function PlanEditor({ plans }: { plans: Plan[] }) {
               onChange={(e) => set({ features: e.target.value.split('\n') })}
               className={input}
             />
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+            <p className={label}>Included in this plan</p>
+            <label className="flex items-start gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={editing.grants?.reviews === true}
+                onChange={(e) => set({ grants: { ...editing.grants, reviews: e.target.checked } })}
+              />
+              <span>
+                Review funnel
+                <span className="mt-0.5 block text-xs text-slate-500">
+                  Unticking this only affects people who buy after the change. Anyone
+                  already on this plan keeps what they paid for — their terms were copied
+                  when they joined and are not read from here again.
+                </span>
+              </span>
+            </label>
           </div>
 
           <label className="flex items-center gap-2 text-sm text-slate-700">

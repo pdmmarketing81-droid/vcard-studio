@@ -58,12 +58,21 @@ function build(body: Record<string, unknown>): { row: Record<string, unknown> } 
     ? body.features.map((f) => String(f).slice(0, 120)).filter(Boolean).slice(0, 12)
     : [];
 
+  /* features is the sentence a customer reads; grants is what the software
+     obeys. They are kept apart on purpose — the list used to be the only
+     record of what a plan included, which meant it could promise the review
+     funnel while nothing anywhere switched it on. Writing a bullet is now a
+     separate act from granting the thing it describes. */
+  const asked = (body.grants ?? {}) as Record<string, unknown>;
+  const grants = { reviews: asked.reviews === true };
+
   return {
     row: {
       audience,
       name: name.slice(0, 80),
       tagline: body.tagline ? String(body.tagline).slice(0, 160) : null,
       features,
+      grants,
       price,
       period,
       opening_balance: audience === 'reseller' ? opening : 0,

@@ -420,3 +420,76 @@ warna Next purana render dikhata rahega.
   me koi rukawat nahi aati.
 - **Feedback row uploads se *pehle* insert hota hai** — mobile pe upload beech me toota to
   rating aur likha hua text phir bhi bach jaaye.
+
+---
+
+## 9 Aug 2026 — deployed, then four holes found and closed
+
+Live at **https://wizart.pdmmarketing.in** (systemd `wizart`, port 3211,
+Traefik file `wizart.yml`). Client's volt-pine untouched; md5 of every
+pre-existing Traefik file verified unchanged after deploy.
+
+### Migrations now in the repo
+
+`001-plans-and-orders.sql` was **recovered from the live database**, not
+written. The plans and payment_orders tables and the activate_plan /
+handle_payment / credit_topup functions had been applied straight to Postgres
+in an earlier session and never written down. A rebuild from files would have
+produced an app that looked complete and could not take money.
+
+Order to run: `001` → `schema` → `002`..`008`.
+
+### What was wrong, and why none of it threw an error
+
+1. **RLS leak (006).** `published cards are public` had no role restriction.
+   Policies are ORed, so every signed-in user's card query also matched every
+   live card. A new customer saw all five existing cards. Editing was never
+   possible (canManageCard guards both the page and the API) and drafts were
+   never exposed — a bad listing, not a disclosure. Fixed by binding the public
+   policies to `anon`; public pages read with a cookie-less client and are
+   unaffected.
+
+2. **Direct customers got free, immortal cards (007).** `payer_for_card()`
+   returned `parent_id` for an end_user. A self-serve buyer has no parent, so
+   the payer was null, and null means "ours: free, never expires". They paid
+   ₹599, it sat unspent, and no renewal would ever have asked again.
+
+3. **A paid customer could not make a card.** POST /api/admin/cards allowed
+   only main_admin and sub_admin. Fixed; `resolveOwner` pins them to
+   themselves and `debit_for_card` enforces the plan's card_limit.
+
+4. **Plans granted nothing (008).** `plans.features` is sales copy that no
+   code reads, so the review funnel was on for every plan regardless of price.
+   Added `plans.grants` / `reseller_terms.grants` (copied at purchase, like the
+   money columns) plus `grants_for()` / `has_grant()`. Everything existing was
+   backfilled to `{"reviews": true}` so nobody lost a working feature.
+
+### Upgrades
+
+`payment_orders.purpose` now allows `'upgrade'`. Checkout charges
+`new price − plan_price_paid`, and `upgrade_plan()` moves the terms across,
+banks the money and immediately spends it (two ledger rows, distinct refs).
+It deliberately does **not** extend expires_at — otherwise repeated small
+upgrades become cheap renewals.
+
+### Navigation
+
+There was no layout under /admin, /reseller or /my. Every page was an island
+whose only exit was /admin. Added `AppShell` + `AppNav` and three thin layouts.
+Nav comes from the viewer's role, not the URL.
+
+### Publish
+
+Not a bug. The switch is in AdminForm's Settings tab, off by default for
+self-created cards, and nobody found it — so their link said "Card not found".
+Added a banner and a Publish button on /my.
+
+### Still open
+
+- Backups, uptime and error monitoring — nothing exists
+- Card transfer between accounts
+- Main admin analytics
+- Razorpay: still test mode, KYC incomplete, no UPI until the account activates
+- Supabase Auth **Site URL is still localhost:3000** — confirmation emails
+  redirect to a dev machine. Fix in Authentication → URL Configuration.
+- The webhook secret was visible in two screenshots; rotate before live mode

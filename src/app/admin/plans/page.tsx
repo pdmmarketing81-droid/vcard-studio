@@ -2,7 +2,6 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { requireAdmin } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import ImpersonationBar from '@/components/ImpersonationBar';
 import PlanEditor, { type Plan } from '@/components/admin/PlanEditor';
 
 export const metadata: Metadata = { title: 'Plans · vCard Studio' };
@@ -38,7 +37,6 @@ export default async function PlansPage() {
 
   return (
     <>
-      <ImpersonationBar />
       <div className="mx-auto max-w-3xl px-4 py-8">
         <div className="mb-6 flex items-start justify-between">
           <div>

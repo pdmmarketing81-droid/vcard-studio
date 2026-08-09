@@ -72,9 +72,20 @@ export async function PATCH(req: Request, { params }: Ctx) {
       ? await uniqueSlug(db, body.slug, existing.id)
       : existing.slug;
 
+  /* The review funnel is a paid feature, so the decision is made here and not
+     only in the form. The form hides the tab; a hidden tab stops an honest
+     person, not a crafted request — and this is the only place both meet. */
+  const { data: reviewsOk } = await db.rpc('has_grant', {
+    p_profile: existing.owner_id,
+    p_key: 'reviews',
+  });
+
   const { data: updated, error } = await db
     .from('businesses')
-    .update(businessRow(body, slug))
+    .update({
+      ...businessRow(body, slug),
+      ...(reviewsOk === true ? {} : { review_enabled: false }),
+    })
     .eq('id', params.id)
     .select()
     .single();

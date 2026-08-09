@@ -55,24 +55,60 @@ export async function POST(req: Request) {
     );
   }
 
-  // Someone who already bought a card plan buying another would silently reset
-  // their card's terms too. Renewal happens from the card, not from here.
+  /* Already on a plan. This used to be a flat refusal, which stopped
+     double-buying and also stopped upgrading — a 599 customer who wanted the
+     review funnel had no way to reach the 999 plan at all. Now it is a fork. */
   const { data: existing } = await db
-    .from('profiles').select('plan_id').eq('id', me.id).maybeSingle();
+    .from('profiles')
+    .select('plan_id, plan_price_paid, plans(audience)')
+    .eq('id', me.id)
+    .maybeSingle();
+
+  let purpose: 'plan' | 'upgrade' = 'plan';
+  let amount = Number(row.price);
 
   if (existing?.plan_id) {
-    return NextResponse.json(
-      { error: 'You already have a plan. Renew from your card instead.' },
-      { status: 400 }
-    );
+    if (existing.plan_id === row.id) {
+      return NextResponse.json(
+        { error: 'You are already on this plan. Renew from your card instead.' },
+        { status: 400 }
+      );
+    }
+
+    /* Crossing between a shopkeeper plan and a reseller plan is not an
+       upgrade, it is a different relationship — different wallet, different
+       terms, different role. Refused here rather than half-handled. */
+    const current = existing.plans as unknown as { audience: string } | null;
+    if (current && current.audience !== row.audience) {
+      return NextResponse.json(
+        { error: 'Please talk to us about moving to this kind of plan.' },
+        { status: 400 }
+      );
+    }
+
+    /* Credit what they actually paid us, not what their old plan costs today.
+       If we had raised that plan's price since, using today's number would
+       quietly hand them a bigger discount than they earned. */
+    const credit = Math.min(Number(existing.plan_price_paid ?? 0), Number(row.price));
+    amount = Number(row.price) - credit;
+
+    if (amount <= 0) {
+      return NextResponse.json(
+        { error: 'That plan is not an upgrade from the one you already have.' },
+        { status: 400 }
+      );
+    }
+
+    purpose = 'upgrade';
   }
 
   let order;
   try {
-    order = await createOrder(Number(row.price), {
+    order = await createOrder(amount, {
       profile_id: me.id,
       plan: row.slug,
       email: me.email,
+      kind: purpose,
     });
   } catch (e) {
     console.error('[checkout]', e);
@@ -82,8 +118,8 @@ export async function POST(req: Request) {
   const { error } = await db.from('payment_orders').insert({
     profile_id: me.id,
     razorpay_order_id: order.id,
-    amount: Number(row.price),
-    purpose: 'plan',
+    amount,
+    purpose,
     plan_id: row.id,
   });
 
@@ -97,5 +133,6 @@ export async function POST(req: Request) {
     amount: order.amount,
     key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
     plan_name: row.name,
+    upgrade: purpose === 'upgrade',
   });
 }

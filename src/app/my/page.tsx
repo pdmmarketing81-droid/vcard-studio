@@ -1,11 +1,10 @@
-import ImpersonationBar from '@/components/ImpersonationBar';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { requireAdmin } from '@/lib/auth';
 import { supabaseServer } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase';
-import SignOutButton from '@/components/SignOutButton';
 import CreateMyCard from '@/components/CreateMyCard';
+import PublishButton from '@/components/PublishButton';
 
 export const metadata: Metadata = { title: 'My card · vCard Studio' };
 export const dynamic = 'force-dynamic';
@@ -51,17 +50,11 @@ export default async function MyCards() {
 
   return (
     <>
-      <ImpersonationBar />
       <div className="mx-auto max-w-2xl px-4 py-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-800">
           {cards.length === 1 ? 'Your card' : 'Your cards'}
         </h1>
-        <p className="mt-1 text-xs text-slate-400">
-          {me.email}
-          <span className="mx-1.5">·</span>
-          <SignOutButton className="underline underline-offset-2 hover:text-slate-600" />
-        </p>
       </div>
 
       {/* First thing on the page, above the list, and not behind a button. The
@@ -90,9 +83,24 @@ export default async function MyCards() {
           buttons, and the review page. Edit it as often as you like; the printed QR code
           keeps working.
         </p>
+        {cards.some((c) => !c.published) && (
+          /* The publish switch does exist — in the last tab of the edit form,
+             under Settings, unticked. A customer who has just paid and made
+             their card has no reason to go looking there, so their card sat
+             invisible and the link they tried said "Card not found".
+             The switch stays where it is; the prompt comes to them. */
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+            <p className="text-sm font-bold text-amber-900">Your card is not live yet</p>
+            <p className="mt-1 text-sm leading-relaxed text-amber-800">
+              Nobody can open its link until you publish it. Add your details first, then
+              press <span className="font-semibold">Publish</span> below.
+            </p>
+          </div>
+        )}
+
         <ul className="space-y-3">
           {cards.map((c) => (
-            <li key={c.id} className="card-panel flex items-center gap-4 p-4">
+            <li key={c.id} className="card-panel flex flex-wrap items-center gap-x-4 gap-y-3 p-4">
               {c.logo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={c.logo_url} alt="" className="h-12 w-12 rounded-xl object-cover" />
@@ -115,13 +123,16 @@ export default async function MyCards() {
               >
                 Edit card
               </Link>
-              <Link
-                href={`/${c.slug}`}
-                target="_blank"
-                className="text-xs font-semibold text-slate-500 hover:text-slate-900"
-              >
-                Open ↗
-              </Link>
+              <PublishButton id={c.id} published={c.published} />
+              {c.published && (
+                <Link
+                  href={`/${c.slug}`}
+                  target="_blank"
+                  className="text-xs font-semibold text-slate-500 hover:text-slate-900"
+                >
+                  Open ↗
+                </Link>
+              )}
             </li>
           ))}
         </ul>

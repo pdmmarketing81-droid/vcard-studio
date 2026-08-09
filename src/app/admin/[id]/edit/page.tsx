@@ -40,6 +40,15 @@ export default async function EditCardPage({ params }: { params: { id: string } 
     notFound();
   }
 
+  /* Asked about the card's OWNER, not about whoever is looking at it. A main
+     admin opening a customer's card must see what that customer paid for —
+     otherwise we would set up a funnel on a card whose plan does not include
+     one, and only find out when it stopped working. */
+  const { data: reviewsOk } = await supabaseAdmin().rpc('has_grant', {
+    p_profile: (data as { owner_id: string | null }).owner_id,
+    p_key: 'reviews',
+  });
+
   const raw = data as unknown as BusinessFull;
   const card: BusinessFull = {
     ...raw,
@@ -74,7 +83,7 @@ export default async function EditCardPage({ params }: { params: { id: string } 
         </div>
       </div>
 
-      <AdminForm initial={card} cardId={card.id} />
+      <AdminForm initial={card} cardId={card.id} canUseReviews={reviewsOk === true} />
     </div>
   );
 }

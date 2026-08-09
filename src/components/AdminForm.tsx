@@ -113,6 +113,7 @@ export default function AdminForm({
   owners = [],
   defaultOwner = '',
   costNote = null,
+  canUseReviews = true,
 }: {
   initial?: BusinessFull | null;
   cardId?: string;
@@ -121,6 +122,10 @@ export default function AdminForm({
   defaultOwner?: string;
   /** e.g. "This card will cost you ₹200 from your wallet." */
   costNote?: string | null;
+  /** Does this card's owner's plan include the review funnel?
+      Defaults to true so that every existing caller keeps working; the pages
+      that know the answer pass it, and the API refuses regardless. */
+  canUseReviews?: boolean;
 }) {
   const router = useRouter();
   const editing = !!cardId;
@@ -369,14 +374,23 @@ export default function AdminForm({
         </div>
       )}
       <div className="no-scrollbar sticky top-0 z-10 -mx-1 flex gap-1 overflow-x-auto bg-slate-100/95 px-1 py-2 backdrop-blur">
-        {TABS.map((t) => (
-          <button key={t} type="button" onClick={() => setTab(t)}
-            className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
-              tab === t ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-200'
-            }`}>
-            {t}
-          </button>
-        ))}
+        {TABS.map((t) => {
+          /* The Reviews tab stays visible when it is not included. Hiding it
+             would mean a customer never learns the feature exists, which is
+             both worse for them and worse for us — this is the one screen
+             where they are already thinking about what their card can do. */
+          const locked = t === 'Reviews' && !canUseReviews;
+          return (
+            <button key={t} type="button" onClick={() => setTab(t)}
+              className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                tab === t ? 'bg-slate-900 text-white'
+                : locked ? 'text-slate-400 hover:bg-slate-200'
+                : 'text-slate-500 hover:bg-slate-200'
+              }`}>
+              {t}{locked && ' ·'}
+            </button>
+          );
+        })}
       </div>
 
       {tab === 'Basics' && (
@@ -632,7 +646,26 @@ export default function AdminForm({
         <DesignPanel design={design} onChange={setDesign} template={tpl} />
       )}
 
-      {tab === 'Reviews' && (
+      {tab === 'Reviews' && !canUseReviews && (
+        <Panel title="Review funnel">
+          <p className="text-sm leading-relaxed text-slate-600">
+            The review page is not part of your current plan. It puts a second QR code
+            on your counter: four and five stars go straight to your Google page, three
+            and below open a private form that reaches you instead of the internet.
+          </p>
+          <a
+            href="/pricing#direct"
+            className="mt-4 inline-block rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700"
+          >
+            See what it costs to add it
+          </a>
+          <p className="mt-3 text-xs text-slate-500">
+            You only pay the difference, and your card keeps its current renewal date.
+          </p>
+        </Panel>
+      )}
+
+      {tab === 'Reviews' && canUseReviews && (
         <>
           <Panel title="Review funnel">
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700">

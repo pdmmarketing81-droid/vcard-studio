@@ -29,6 +29,26 @@ export default async function CheckoutPage({
 
   if (!plan || !plan.visible) redirect('/pricing');
 
+  /* Is this an upgrade, and if so what is left to pay?
+     Worked out again here purely to put the right number on the button —
+     /api/checkout decides the real amount, and this page can never be the
+     thing that sets a price. If the two ever disagree the customer is charged
+     what the server says, which is the only safe way round. */
+  const { data: mine } = await supabaseAdmin()
+    .from('profiles')
+    .select('plan_id, plan_price_paid')
+    .eq('id', me.id)
+    .maybeSingle();
+
+  const { data: planId } = await supabaseAdmin()
+    .from('plans').select('id').eq('slug', plan.slug).maybeSingle();
+
+  const isUpgrade = !!mine?.plan_id && mine.plan_id !== planId?.id;
+  const credit = isUpgrade
+    ? Math.min(Number(mine?.plan_price_paid ?? 0), Number(plan.price))
+    : 0;
+  const payable = Number(plan.price) - credit;
+
   const features = Array.isArray(plan.features) ? (plan.features as string[]) : [];
   const per =
     plan.period === 'once' ? 'one time'
@@ -48,7 +68,7 @@ export default async function CheckoutPage({
 
       <main className="mx-auto w-full max-w-lg flex-1 px-5 py-14">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          You&apos;re getting {plan.name}
+          {isUpgrade ? `Moving up to ${plan.name}` : `You're getting ${plan.name}`}
         </h1>
         <p className="mt-1 text-sm text-slate-500">Signed in as {me.email}</p>
 
@@ -72,10 +92,27 @@ export default async function CheckoutPage({
               ))}
             </ul>
           )}
+          {isUpgrade && (
+            <div className="mt-5 space-y-1.5 border-t border-slate-100 pt-5 text-sm">
+              <div className="flex justify-between text-slate-500">
+                <span>Already paid</span>
+                <span>− {rupees(credit)}</span>
+              </div>
+              <div className="flex justify-between text-base font-bold text-slate-900">
+                <span>To pay now</span>
+                <span>{rupees(payable)}</span>
+              </div>
+              <p className="pt-1 text-xs leading-relaxed text-slate-500">
+                Your card keeps the renewal date it already has — this adds the features,
+                it does not buy another year. From next renewal onwards the price is{' '}
+                {rupees(plan.price)}.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="mt-6">
-          <CheckoutButton planSlug={plan.slug} planName={plan.name} price={Number(plan.price)} />
+          <CheckoutButton planSlug={plan.slug} planName={plan.name} price={payable} />
         </div>
 
         <p className="mt-4 text-xs leading-relaxed text-slate-500">

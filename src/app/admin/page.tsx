@@ -1,8 +1,6 @@
-import ImpersonationBar from '@/components/ImpersonationBar';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireAdmin } from '@/lib/auth';
-import SignOutButton from '@/components/SignOutButton';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getTemplate } from '@/lib/templates';
 import { PublishToggle, DuplicateButton, DeleteButton } from '@/components/admin/CardActions';
@@ -21,7 +19,8 @@ type Row = {
 };
 
 export default async function AdminHome() {
-  const me = await requireAdmin();
+  // Gate only — who you are is drawn by the shell now, not by this page.
+  await requireAdmin();
 
   const { data, error } = await supabaseAdmin()
     .from('businesses')
@@ -33,55 +32,23 @@ export default async function AdminHome() {
 
   return (
     <>
-      <ImpersonationBar />
-      <div className="mx-auto max-w-3xl px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mx-auto max-w-5xl px-4 py-8">
+      {/* People, Plans, Feedback and Activity used to be buttons here. They
+          live in the header now, on every screen instead of only this one —
+          which is what made this page the only way to reach any of them. */}
+      <div className="mb-6 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Cards</h1>
           <p className="text-sm text-slate-500">
             {cards.length} total · {live} live
           </p>
-          {/* Who you are signed in as. Worth showing on every screen that can
-              change things: with roles and a login-as feature coming, "which
-              account am I actually using right now" stops being obvious. */}
-          <p className="mt-1 text-xs text-slate-400">
-            {me.email} · main admin
-            <span className="mx-1.5">·</span>
-            <SignOutButton className="underline underline-offset-2 hover:text-slate-600" />
-          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/admin/users"
-            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-          >
-            People
-          </Link>
-          <Link
-            href="/admin/plans"
-            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-          >
-            Plans
-          </Link>
-          <Link
-            href="/admin/audit"
-            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-          >
-            Activity
-          </Link>
-          <Link
-            href="/admin/feedback"
-            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-          >
-            Feedback
-          </Link>
-          <Link
-            href="/admin/new"
-            className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
-          >
-            + New card
-          </Link>
-        </div>
+        <Link
+          href="/admin/new"
+          className="shrink-0 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
+        >
+          + New card
+        </Link>
       </div>
 
       {error && (
