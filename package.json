@@ -10,7 +10,9 @@
     "migrate:r2": "node scripts/migrate-media-to-r2.mjs",
     "migrate:r2:dry": "node scripts/migrate-media-to-r2.mjs --dry",
     "backup": "node scripts/backup.mjs",
-    "backup:local": "node scripts/backup.mjs --local-only"
+    "backup:local": "node scripts/backup.mjs --local-only",
+    "backup:check": "node scripts/restore.mjs",
+    "backup:restore": "node scripts/restore.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.696.0",
