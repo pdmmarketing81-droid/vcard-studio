@@ -22,6 +22,7 @@ import { currentProfile, type Role } from '@/lib/session';
 const NAV: Record<Role, NavItem[]> = {
   main_admin: [
     { href: '/admin', label: 'Cards' },
+    { href: '/admin/analytics', label: 'Analytics' },
     { href: '/admin/users', label: 'People', deep: true },
     { href: '/admin/plans', label: 'Plans' },
     { href: '/admin/feedback', label: 'Feedback' },
@@ -29,6 +30,7 @@ const NAV: Record<Role, NavItem[]> = {
   ],
   sub_admin: [
     { href: '/reseller', label: 'My business' },
+    { href: '/admin/analytics', label: 'Analytics' },
     { href: '/admin/new', label: 'New card' },
   ],
   end_user: [{ href: '/my', label: 'My card' }],
