@@ -71,11 +71,38 @@ export function rateLimit(key: string, limit: Limit): LimitResult {
  * rate limit ever does.
  */
 export function callerKey(req: Request, bucket: string): string {
-  const fwd = req.headers.get('x-forwarded-for') ?? '';
-  const ip =
-    fwd.split(',')[0].trim() ||
-    req.headers.get('x-real-ip') ||
-    'unknown';
+  /* X-Forwarded-For is a list, and only the entries our own proxy added can be
+     believed. Anyone can send `X-Forwarded-For: 1.2.3.4`; Traefik appends the
+     real peer to whatever arrived rather than replacing it. So the LEFTMOST
+     entry is whatever the caller typed.
+
+     Reading it left-to-right — which this did — meant every limit here could be
+     walked past by changing one header per request. The login limiter, the
+     checkout limiter and the review limiter were all effectively off to anyone
+     who knew that.
+
+     The rightmost entry is the one added last, by our proxy, and is the actual
+     TCP peer. That is the one to count. */
+  const chain = (req.headers.get('x-forwarded-for') ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  /* Cloudflare is the exception, and only if the site is actually behind it:
+     Cloudflare strips any CF-Connecting-IP the client sent and writes its own.
+     Behind Cloudflare the rightmost hop is a Cloudflare edge address, which
+     would put every visitor in one bucket and lock out the whole country at
+     once — so this header has to win when it is trustworthy.
+
+     Gated on TRUST_CF_HEADER so that turning Cloudflare on is a deliberate act.
+     Without the flag the header is ignored, because off Cloudflare it is just
+     another thing a caller can type. */
+  const cf =
+    process.env.TRUST_CF_HEADER === 'true'
+      ? req.headers.get('cf-connecting-ip')
+      : null;
+
+  const ip = cf || chain[chain.length - 1] || req.headers.get('x-real-ip') || 'unknown';
   return `${bucket}:${ip}`;
 }
 

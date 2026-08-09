@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import AdminForm from '@/components/AdminForm';
+import TransferCard from '@/components/admin/TransferCard';
 import { requireAdmin, canManageCard } from '@/lib/auth';
 import { homeFor } from '@/lib/session';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -49,6 +50,25 @@ export default async function EditCardPage({ params }: { params: { id: string } 
     p_key: 'reviews',
   });
 
+  /* Who this card could be moved to. A main admin may pick anyone; a reseller
+     only their own book. Scoped in the query rather than filtered in the
+     component, because a list that arrives in the browser has already left. */
+  let owners: { id: string; label: string }[] = [];
+  if (me.role === 'main_admin' || me.role === 'sub_admin') {
+    const q = supabaseAdmin().from('profiles').select('id, role, full_name, business_name');
+    const { data: people } =
+      me.role === 'main_admin' ? await q : await q.or(`id.eq.${me.id},parent_id.eq.${me.id}`);
+
+    owners = (people ?? []).map((p) => ({
+      id: p.id,
+      label:
+        p.business_name ||
+        p.full_name ||
+        (p.role === 'main_admin' ? 'Main admin' : p.role === 'sub_admin' ? 'Reseller' : 'Customer') +
+          ` · ${p.id.slice(0, 8)}`,
+    }));
+  }
+
   const raw = data as unknown as BusinessFull;
   const card: BusinessFull = {
     ...raw,
@@ -84,6 +104,16 @@ export default async function EditCardPage({ params }: { params: { id: string } 
       </div>
 
       <AdminForm initial={card} cardId={card.id} canUseReviews={reviewsOk === true} />
+
+      {owners.length > 0 && (
+        <div className="mt-8">
+          <TransferCard
+            cardId={card.id}
+            currentOwner={(data as { owner_id: string | null }).owner_id}
+            owners={owners}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -493,3 +493,42 @@ Added a banner and a Publish button on /my.
 - Supabase Auth **Site URL is still localhost:3000** — confirmation emails
   redirect to a dev machine. Fix in Authentication → URL Configuration.
 - The webhook secret was visible in two screenshots; rotate before live mode
+
+### 9 Aug 2026, later — ops and the last feature
+
+**Backups.** `scripts/backup.mjs`, nightly at 02:30, local + R2, 30-day
+retention. Gzipped JSON of all 16 tables plus the auth user list. Deliberately
+not pg_dump: that needs postgresql-client-17 installed on a VPS that also hosts
+a client's live site (Ubuntu 24.04 ships 16, which refuses to dump a 17 server).
+
+`scripts/restore.mjs` checks a backup by default and only writes with
+`--restore --yes`. It verifies row counts and looks for orphaned children.
+
+**Known limit, written down on purpose:** total project loss is only a partial
+recovery. auth accounts cannot be recreated with their original uuids through
+the admin API, and profiles.id *is* that uuid. Covers the realistic disaster
+(bad migration, wrong DELETE); does not replace Supabase's paid backups.
+
+**Health.** `/api/health` touches the database, not just Next — Next returns
+200 with a dead database while every real page is broken, which is roughly what
+/pricing did today. `scripts/healthcheck.sh` runs every 5 minutes, restarts
+**once**, then stays down and loud rather than restart-looping over the cause.
+
+**Money tests.** `supabase/tests/money-flows.sql` — 8 assertions, runs on
+production safely because it ends in a deliberate exception and rolls back.
+Tests 5 and 8 cover replayed webhooks, which Razorpay guarantees will happen.
+All 8 passing.
+
+**Card transfer.** `POST /api/admin/cards/[id]/transfer`. Two ownership checks
+(may give AND may receive) so a reseller cannot push renewal costs onto someone
+else's account. No money moves and expires_at does not change — only who pays
+next time. Audited with both ends, because "whose card was this in March" is
+what a billing dispute turns on.
+
+### Still on the owner
+
+- Supabase Auth **Site URL is still localhost:3000**
+- Razorpay KYC incomplete — test mode only, no UPI
+- `CRON_SECRET` exposed in screenshots four times; rotate it
+- VPS restart pending; ufw inactive; n8n (32770) exposed
+- No staging — every push goes straight to production

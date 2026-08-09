@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { guardApi } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createOrder } from '@/lib/razorpay';
+import { rateLimit, callerKey, tooManyRequests } from '@/lib/rateLimit';
 
 const MIN = 100;
 const MAX = 200_000;
@@ -16,6 +17,12 @@ const MAX = 200_000;
  * free.
  */
 export async function POST(req: Request) {
+  /* Every call here creates a Razorpay order. Unlimited calls mean unlimited
+     abandoned orders, which is noise in their dashboard and ours, and a way to
+     lean on their API until they rate limit us instead. */
+  const limit = rateLimit(callerKey(req, 'topup'), { max: 10, windowMs: 10 * 60_000 });
+  if (!limit.ok) return tooManyRequests(limit.retryAfter, 'Too many attempts. Please wait a moment.');
+
   const gate = await guardApi('sub_admin', 'main_admin');
   if ('response' in gate) return gate.response;
 

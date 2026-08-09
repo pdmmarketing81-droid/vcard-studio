@@ -2,10 +2,18 @@ import { NextResponse } from 'next/server';
 import { guardApi } from '@/lib/auth';
 import { putMedia, sniffType, mediaPath } from '@/lib/storage';
 import { checkDimensions, stripMetadata } from '@/lib/imageSafety';
+import { rateLimit, callerKey, tooManyRequests } from '@/lib/rateLimit';
 
 const MAX_BYTES = 8 * 1024 * 1024;
 
 export async function POST(req: Request) {
+  /* This is the one authenticated route that writes to storage we pay for.
+     A signed-in account looping uploads fills the bucket and the bill, and a
+     card only ever needs a handful of files — 60 in ten minutes is generous
+     for a real person and useless for a script. */
+  const limit = rateLimit(callerKey(req, 'upload'), { max: 60, windowMs: 10 * 60_000 });
+  if (!limit.ok) return tooManyRequests(limit.retryAfter, 'Too many uploads. Please wait a moment.');
+
   const gate = await guardApi();
   if ('response' in gate) return gate.response;
 

@@ -4,6 +4,7 @@ import { supabaseServer } from '@/lib/supabase-server';
 import { guardApi } from '@/lib/auth';
 import { businessRow, uniqueSlug, writeChildren, revalidateCard } from '@/lib/adminCards';
 import { auditAction } from '@/lib/audit';
+import { rateLimit, callerKey, tooManyRequests } from '@/lib/rateLimit';
 import type { Profile } from '@/lib/session';
 
 /**
@@ -54,6 +55,12 @@ async function resolveOwner(
    them, and debit_for_card() enforces the card_limit their plan set (1 for the
    direct plan), so this cannot become a way to mint cards. */
 export async function POST(req: Request) {
+  /* Creating a card spends money from a wallet. The balance is the real limit,
+     but a loop against this endpoint would drain a reseller's wallet in seconds
+     if their account were ever taken, and leave a trail of live cards behind. */
+  const limit = rateLimit(callerKey(req, 'card-create'), { max: 20, windowMs: 10 * 60_000 });
+  if (!limit.ok) return tooManyRequests(limit.retryAfter, 'Too many cards at once. Please wait a moment.');
+
   const gate = await guardApi('main_admin', 'sub_admin', 'end_user');
   if ('response' in gate) return gate.response;
   const me = gate.profile;

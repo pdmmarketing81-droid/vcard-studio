@@ -3,6 +3,7 @@ import { realProfile } from '@/lib/session';
 import { supabaseAdmin } from '@/lib/supabase';
 import { audit } from '@/lib/audit';
 import { IMPERSONATE_COOKIE, makeToken } from '@/lib/impersonation';
+import { rateLimit, callerKey, tooManyRequests } from '@/lib/rateLimit';
 
 /**
  * Start or stop being signed in as someone else.
@@ -12,6 +13,12 @@ import { IMPERSONATE_COOKIE, makeToken } from '@/lib/impersonation';
  * account to account, with the audit trail losing track of who began it.
  */
 export async function POST(req: Request) {
+  /* Not about load. Signing in as other people, one after another, in a loop,
+     is what taking over an admin account looks like — and the limit turns that
+     from a quiet sweep into something the audit log shows as a wall. */
+  const limit = rateLimit(callerKey(req, 'impersonate'), { max: 20, windowMs: 10 * 60_000 });
+  if (!limit.ok) return tooManyRequests(limit.retryAfter, 'Too many attempts. Please wait a moment.');
+
   const me = await realProfile();
   if (!me || me.role !== 'main_admin') {
     return NextResponse.json({ error: 'Not found.' }, { status: 404 });
