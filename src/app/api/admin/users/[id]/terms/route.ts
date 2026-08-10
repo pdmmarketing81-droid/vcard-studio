@@ -71,8 +71,17 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     return NextResponse.json({ error: 'Grace days must be between 0 and 365.' }, { status: 400 });
   }
 
+  /* What this reseller is allowed to sell.
+     Missing until now, and it mattered: this upsert rewrites the whole row, so
+     a terms edit was quietly resetting grants to the column default — and any
+     reseller set up by hand never had one in the first place. Their review QR
+     said "not part of your plan", theirs and every customer's beneath them,
+     while the reseller believed they had bought it. */
+  const grants = { reviews: body.grants?.reviews === true };
+
   const { error } = await db.from('reseller_terms').upsert({
     profile_id: params.id,
+    grants,
     plan_type: planType,
     plan_amount: planAmount,
     plan_expires_at: body.plan_expires_at || null,
@@ -100,7 +109,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       plan: planType, plan_amount: planAmount,
       per_card: perCard, list_price: listPrice, percent,
       card_period: cardPeriod, renewal: renewAmount, renewal_percent: renewPercent,
-      card_limit: cardLimit, grace_days: graceDays,
+      card_limit: cardLimit, grace_days: graceDays, grants,
     },
   });
 

@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { requireAdmin } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import AddCustomer from '@/components/AddCustomer';
+import { PublishToggle, DeleteButton } from '@/components/admin/CardActions';
 import TopUpButton from '@/components/TopUpButton';
 
 export const metadata: Metadata = { title: 'Reseller · vCard Studio' };
@@ -128,10 +129,15 @@ export default async function ResellerHome() {
                   {!c.published && ' · not live'}
                 </p>
               </div>
+              <PublishToggle id={c.id} published={c.published} />
               <Link href={`/admin/${c.id}/edit`}
                 className="text-sm font-semibold text-slate-500 hover:text-slate-900">
                 Edit
               </Link>
+              {/* The API has always allowed a reseller to delete their own
+                  cards; only the button was missing, so a card made by mistake
+                  stayed for ever and kept costing wallet money to renew. */}
+              <DeleteButton id={c.id} name={c.name} />
             </li>
           ))}
         </ul>

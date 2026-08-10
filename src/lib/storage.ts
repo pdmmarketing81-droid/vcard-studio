@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { supabaseAdmin } from './supabase';
 
 /**
@@ -41,6 +41,66 @@ export function publicUrl(path: string): string {
   const base = process.env.R2_PUBLIC_URL;
   if (base) return `${base.replace(/\/+$/, '')}/${path}`;
   return supabaseAdmin().storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+/**
+ * Turns a public URL back into the object path we stored it under.
+ *
+ * Returns null for anything that is not ours — a card can legitimately point at
+ * an image hosted somewhere else, and deleting by URL must never wander off our
+ * own bucket.
+ */
+export function pathFromUrl(url: string): string | null {
+  if (!url) return null;
+
+  const base = process.env.R2_PUBLIC_URL?.replace(/\/+$/, '');
+  if (base && url.startsWith(base + '/')) {
+    return url.slice(base.length + 1).split('?')[0] || null;
+  }
+
+  // Supabase public URLs look like .../storage/v1/object/public/<bucket>/<path>
+  const marker = `/storage/v1/object/public/${BUCKET}/`;
+  const at = url.indexOf(marker);
+  if (at !== -1) return url.slice(at + marker.length).split('?')[0] || null;
+
+  return null;
+}
+
+/**
+ * Removes files we host. Never throws.
+ *
+ * Deliberately quiet: this runs after a card has already been deleted, and the
+ * card being gone is what the user asked for. Failing loudly here would report
+ * an error for work that has, from their point of view, already succeeded. A
+ * leftover file costs a fraction of a paisa; a scary error costs trust.
+ * Failures are logged so a sweep can catch them later.
+ */
+export async function deleteMedia(urls: (string | null | undefined)[]): Promise<number> {
+  const paths = Array.from(
+    new Set(urls.map((u) => (u ? pathFromUrl(u) : null)).filter((p): p is string => !!p))
+  );
+  if (!paths.length) return 0;
+
+  try {
+    const s3 = r2();
+    if (s3) {
+      // S3 caps a batch delete at 1000 keys.
+      for (let i = 0; i < paths.length; i += 1000) {
+        await s3.send(
+          new DeleteObjectsCommand({
+            Bucket: BUCKET,
+            Delete: { Objects: paths.slice(i, i + 1000).map((Key) => ({ Key })) },
+          })
+        );
+      }
+    } else {
+      await supabaseAdmin().storage.from(BUCKET).remove(paths);
+    }
+    return paths.length;
+  } catch (e) {
+    console.error('[deleteMedia] left behind', paths.length, 'file(s):', e);
+    return 0;
+  }
 }
 
 /**

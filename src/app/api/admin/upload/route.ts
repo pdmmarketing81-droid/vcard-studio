@@ -14,7 +14,12 @@ export async function POST(req: Request) {
   const limit = rateLimit(callerKey(req, 'upload'), { max: 60, windowMs: 10 * 60_000 });
   if (!limit.ok) return tooManyRequests(limit.retryAfter, 'Too many uploads. Please wait a moment.');
 
-  const gate = await guardApi();
+  /* Roles named explicitly. guardApi() with no arguments does NOT mean "anyone
+     signed in" — it falls back to main_admin only. Called bare, as it was here,
+     this route answered 403 to every reseller and every customer, so nobody but
+     the owner of the platform could put a photo on a card. It looked like an
+     upload bug and was a permissions default. */
+  const gate = await guardApi('main_admin', 'sub_admin', 'end_user');
   if ('response' in gate) return gate.response;
 
   const form = await req.formData();

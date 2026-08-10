@@ -213,6 +213,61 @@ export async function writeChildren(
  * Cards are cached for 60s. Without this, an edit would appear to do nothing
  * for up to a minute — which reads as a bug, not a cache.
  */
+/**
+ * Every file this card points at.
+ *
+ * One list, used by both delete and update, so the two can never disagree about
+ * what counts as media. Adding an image column to a table means adding one line
+ * here and nowhere else.
+ *
+ * social_links.url is deliberately not here — that column holds Instagram and
+ * WhatsApp addresses, not uploads, and treating it as media would try to delete
+ * somebody's Instagram profile from our bucket. videos.url IS here, because it
+ * may be an uploaded mp4; pathFromUrl() returns null for a YouTube link, so an
+ * external video is skipped by construction rather than by remembering to.
+ */
+const MEDIA_COLUMNS: Array<[table: string, column: string]> = [
+  ['services', 'image_url'],
+  ['packages', 'image_url'],
+  ['testimonials', 'avatar_url'],
+  ['gallery_items', 'image_url'],
+  ['videos', 'url'],
+];
+
+export async function collectCardMedia(db: Db, businessId: string): Promise<string[]> {
+  const out: (string | null | undefined)[] = [];
+
+  const { data: card } = await db
+    .from('businesses')
+    .select('logo_url, cover_url')
+    .eq('id', businessId)
+    .maybeSingle();
+
+  if (card) out.push(card.logo_url, card.cover_url);
+
+  await Promise.all(
+    MEDIA_COLUMNS.map(async ([table, column]) => {
+      const { data } = await db.from(table).select(column).eq('business_id', businessId);
+      for (const row of (data ?? []) as unknown as Record<string, string | null>[]) {
+        out.push(row[column]);
+      }
+    })
+  );
+
+  // Feedback attachments are a jsonb array, so they need unpacking.
+  const { data: fb } = await db
+    .from('feedback')
+    .select('attachments')
+    .eq('business_id', businessId);
+
+  for (const row of fb ?? []) {
+    const list = Array.isArray(row.attachments) ? row.attachments : [];
+    for (const a of list) out.push(typeof a === 'string' ? a : (a as { url?: string })?.url);
+  }
+
+  return Array.from(new Set(out.filter((u): u is string => !!u)));
+}
+
 export function revalidateCard(slug: string, customDomain?: string | null) {
   try {
     revalidatePath(`/${slug}`);

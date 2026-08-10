@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wizart Studio — Kise bechna hai, aur kaise</title>
+<style>
+  :root{
+    --v:#7c3aed; --v2:#a78bfa; --ink:#0f172a; --mut:#64748b; --line:#e2e8f0;
+    --bg:#f8fafc; --good:#059669; --warn:#d97706; --bad:#dc2626;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif;}
+  .wrap{max-width:1000px;margin:0 auto;padding:40px 24px 80px}
+  h1{font-size:32px;letter-spacing:-.02em;margin:0 0 6px}
+  h2{font-size:21px;margin:52px 0 6px;letter-spacing:-.01em}
+  h3{font-size:16px;margin:28px 0 8px}
+  .sub{color:var(--mut);margin:0 0 8px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px;margin:16px 0}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:12px 0}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;
+     color:var(--mut);border-bottom:2px solid var(--line);padding:8px 10px}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .bar{height:9px;border-radius:5px;background:var(--v);display:block}
+  .bartrack{background:#ede9fe;border-radius:5px;width:100%;min-width:90px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700}
+  .p-hi{background:#dcfce7;color:#166534}
+  .p-md{background:#fef3c7;color:#92400e}
+  .p-lo{background:#f1f5f9;color:#475569}
+  .lead{font-size:17px;line-height:1.7}
+  .note{background:#f5f3ff;border-left:3px solid var(--v);padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0;font-size:14px}
+  .warnbox{background:#fffbeb;border-left:3px solid var(--warn);padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0;font-size:14px}
+  .grid{display:grid;gap:14px}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px}
+  .kpi .n{font-size:26px;font-weight:800;letter-spacing:-.02em}
+  .kpi .l{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
+  .script{background:#0f172a;color:#e2e8f0;border-radius:12px;padding:18px 20px;font-size:14px;line-height:1.75}
+  .script b{color:#c4b5fd}
+  ol,ul{padding-left:20px} li{margin:5px 0}
+  .foot{color:var(--mut);font-size:13px;margin-top:60px;border-top:1px solid var(--line);padding-top:18px}
+  @media print{body{background:#fff}.card,.kpi{break-inside:avoid}}
+  @media(max-width:700px){.g3,.g2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Kise bechna hai, aur kaise</h1>
+<p class="sub">Wizart Studio · Pune · plan banaya 10 Aug 2026</p>
+
+<div class="note">
+  <b>Poore document ka nichod:</b> digital card bechna mushkil hai — wo har koi bech raha hai.
+  <b>Google reviews</b> bechna aasan hai, kyunki uska dard dukaandar ko roz mehsoos hota hai.
+  Card ko us cheez ke saath muft me diya hua samjho.
+</div>
+
+<h2>1. Asli cheez kya bech rahe ho</h2>
+
+<div class="card">
+<table>
+  <tr>
+    <th style="width:50%">Ye mat kehna</th>
+    <th>Ye kehna</th>
+  </tr>
+  <tr>
+    <td>"Digital visiting card banata hoon"</td>
+    <td>"Aapke Google reviews badhaunga, aur kharab review public hone se pehle aapko dikhega"</td>
+  </tr>
+  <tr>
+    <td>"QR code wala card"</td>
+    <td>"Counter pe ek QR. Khush customer seedha Google pe. Naraz customer aap tak, chupke se."</td>
+  </tr>
+  <tr>
+    <td>"₹999 me website jaisa"</td>
+    <td>"Ek bhi naya customer aa gaya to paisa wasool. Saal bhar ke ₹999."</td>
+  </tr>
+</table>
+</div>
+
+<p class="lead">
+Digital card Pune me ₹300 se ₹3000 tak koi bhi bech raha hai. Usme tum sirf keemat pe ladoge.
+Review funnel wo cheez hai jo <b>dukaandar ko paisa kama kar deti hai</b> — aur jo cheez customer
+ko kamati hai, uska daam nahi poocha jaata.
+</p>
+
+<h2>2. Ideal customer — kaun sabse jaldi haan bolega</h2>
+
+<p class="sub">Char cheezein dekhi hain. Score mera aanklan hai, koi survey nahi — par tark har column ke saath likha hai.</p>
+
+<div class="card">
+<table>
+  <tr>
+    <th>Dhandha</th>
+    <th>Review kitna maayne rakhta hai</th>
+    <th>Paisa dene ki aadat</th>
+    <th>Pahunchna kitna aasan</th>
+    <th class="num">Fit</th>
+  </tr>
+  <tr>
+    <td><b>Dental clinic / dentist</b></td>
+    <td>Bahut — log "dentist near me" hi search karte hain</td>
+    <td>Zyada — ek patient ₹5,000+</td>
+    <td>Aasan — clinic pe milte hain</td>
+    <td class="num"><div class="bartrack"><span class="bar" style="width:100%"></span></div>10</td>
+  </tr>
+  <tr>
+    <td><b>Beauty parlour / salon / spa</b></td>
+    <td>Bahut — aurtein review padh kar hi jaati hain</td>
+    <td>Theek — margin achha</td>
+    <td>Bahut aasan — har gali me</td>
+    <td class="num"><div class="bartrack"><span class="bar" style="width:100%"></span></div>10</td>
+  </tr>
+  <tr>
+    <td><b>Diagnostic lab / pathology</b></td>
+    <td>Bahut — bharosa hi sab kuch</td>
+    <td>Zyada</td>
+    <td>Theek</td>
+    <td class="num"><div class="bartrack"><span class="bar" style="width:90%"></span></div>9</td>
+  </tr>
+  <tr>
+    <td><b>Gym / fitness studio</b></td>
+    <td>Bahut — joining se pehle log dekhte hain</td>
+    <td>Theek</td>
+    <td>Aasan</td>
+    <td class="num"><div class="bartrack"><span class="bar" style="width:90%"></span></div>9</td>
+  </tr>
+  <tr>
+    <td><b>Coaching class / tuition</b></td>
+    <td>Bahut — maa-baap review padhte hain</td>
+    <td>Theek</td>
+    <td>Aasan — admission season me best</td>
+    <td class="num"><div class="bartrack"><span class="bar" style="width:85%"></span></div>8.5</td>
+  </tr>
+  <tr>
+    <td><b>Interior designer / architect</b></td>
+    <td>Theek</td>
+    <td>Bahut zyada — ek project lakhon ka</td>
+    <td>Mushkil — office me time lete hain</td>
+    <td class="num"><div class="bartrack"><span class="bar" style="width:80%"></span></div>8</td>
+  </tr>
+  <tr>
+    <td><b>Restaurant / cafe</b></td>
+    <td>Bahut — par Zomato/Swiggy pe zyada dhyan</td>
+    <td>Theek</td>
+    <td>Aasan</td>
+    <td class="num"><div class="bartrack"><span class="bar" style="width:75%"></span></div>7.5</td>
+  </tr>
+  <tr>
+    <td><b>Real estate / property agent</b></td>
+    <td>Kam</td>
+    <td>Zyada</td>
+    <td>Bahut aasan — wo khud milna chahte hain</td>
+    <td class="num"><div class="bartrack"><span class="bar" style="width:75%"></span></div>7.5</td>
+  </tr>
+  <tr>
+    <td><b>Photographer / event planner</b></td>
+    <td>Theek</td>
+    <td>Theek</td>
+    <td>Aasan — portfolio ki bhookh hoti hai</td>
+    <td class="num"><div class="bartrack"><span class="bar" style="width:70%"></span></div>7</td>
+  </tr>
+  <tr>
+    <td><b>Car service / detailing</b></td>
+    <td>Theek</td>
+    <td>Theek</td>
+    <td>Aasan</td>
+    <td class="num"><div class="bartrack"><span class="bar" style="width:65%"></span></div>6.5</td>
+  </tr>
+  <tr>
+    <td>Kirana / general store</td>
+    <td>Bahut kam — log paas wali dukaan jaate hain, review nahi dekhte</td>
+    <td>Kam</td>
+    <td>Aasan</td>
+    <td class="num"><div class="bartrack"><span class="bar" style="width:30%;background:#cbd5e1"></span></div>3</td>
+  </tr>
+</table>
+</div>
+
+<div class="warnbox">
+  <b>Kirana wale pe time mat lagana.</b> Wo sabse aasan milte hain, isliye sabse pehle unke paas
+  jaane ka mann karta hai. Par unka customer review dekh kar nahi aata — wo paas me rehta hai
+  isliye aata hai. Unhe ye cheez bech doge to wo saal bhar baad renew nahi karega, aur tumhara
+  pehla 50 customer ka group hi kharab reference dega.
+</div>
+
+<h3>Pehle 30 din — sirf ye teen</h3>
+<div class="grid g3">
+  <div class="kpi"><div class="l">Sabse pehle</div><div class="n">Salon</div>
+    <p style="font-size:13px;color:var(--mut);margin:6px 0 0">Har gali me hain, malik dukaan pe hi
+    milta hai, review se seedha farq padta hai. Naa sunne me bhi 2 minute lagte hain.</p></div>
+  <div class="kpi"><div class="l">Sabse zyada paisa</div><div class="n">Clinic</div>
+    <p style="font-size:13px;color:var(--mut);margin:6px 0 0">Dentist, physio, lab. ₹999 unke liye
+    kuch nahi hai, aur review unka poora dhandha chalaata hai.</p></div>
+  <div class="kpi"><div class="l">Sabse tez</div><div class="n">Gym</div>
+    <p style="font-size:13px;color:var(--mut);margin:6px 0 0">Ek gym me 200 member. Ek hi jagah pe
+    200 log tumhara QR dekhenge. Reference ka sabse bada zariya.</p></div>
+</div>
+
+<h2>3. Paisa — asli numbers, tumhare plans se</h2>
+
+<h3>Seedha dukaandar ko</h3>
+<div class="card">
+<table>
+  <tr><th>Plan</th><th class="num">Daam</th><th class="num">Saal baad renewal</th><th>Kis ke liye</th></tr>
+  <tr><td>Digital Card</td><td class="num">₹599</td><td class="num">₹599</td>
+      <td>Jinka dhandha review pe nahi chalta — agent, freelancer, B2B</td></tr>
+  <tr><td><b>Card + Reviews</b></td><td class="num"><b>₹999</b></td><td class="num">₹999</td>
+      <td><b>Default yahi bechna.</b> Upar wali table wale sab</td></tr>
+</table>
+</div>
+
+<div class="note">
+  ₹599 wala plan <b>dikhana kam, bechna kam.</b> Wo sirf isliye hai ki ₹999 saste lage.
+  Do daam saath dikhte hain to log mehnga wala isliye lete hain kyunki usme "reviews bhi hain".
+  Akela ₹999 dikhao to wo mehnga lagta hai.
+</div>
+
+<h3>Reseller ka ganit — ye hi tumhara asli scale hai</h3>
+<div class="card">
+<table>
+  <tr>
+    <th>Plan</th><th class="num">Wo dega</th><th class="num">Wallet</th>
+    <th class="num">Per card</th><th class="num">Kitne card</th>
+    <th class="num">₹999 pe becha to uska profit</th>
+  </tr>
+  <tr><td>Starter</td><td class="num">₹2,000</td><td class="num">₹2,000</td>
+      <td class="num">₹200</td><td class="num">10</td><td class="num">₹7,990</td></tr>
+  <tr><td>Growth</td><td class="num">₹5,000</td><td class="num">₹5,500</td>
+      <td class="num">₹175</td><td class="num">31</td><td class="num">₹25,969</td></tr>
+  <tr><td><b>Pro</b></td><td class="num"><b>₹10,000</b></td><td class="num">₹11,500</td>
+      <td class="num">₹150</td><td class="num">76</td><td class="num"><b>₹65,924</b></td></tr>
+</table>
+<p style="font-size:13px;color:var(--mut);margin:4px 0 0">
+Har card pe tumhara ₹150–200. Reseller apni keemat khud rakhta hai — ₹999 to bas ek misaal hai.
+</p>
+</div>
+
+<div class="card">
+<h3 style="margin-top:0">Reseller ko dikhane wali ek hi line</h3>
+<div class="script">
+"₹10,000 lagaao. <b>76 card</b> ban jaate hain. Ek card ₹999 me becho to
+<b>₹75,000 se upar</b>. Aadhe bhi bech pao to teen guna. Aur agle saal renewal me
+har card pe sirf ₹100 lagta hai — customer se poore ₹999 phir milte hain."
+</div>
+</div>
+
+<h3>Ek reseller vs ek dukaandar — tumhare liye</h3>
+<div class="card">
+<table>
+  <tr><th>&nbsp;</th><th class="num">Ek baar me paisa</th><th class="num">Tumhara time</th><th>Kya seekh milti hai</th></tr>
+  <tr><td>Ek dukaandar (₹999)</td><td class="num">₹999</td><td class="num">2–4 ghante</td>
+      <td>Bahut — kaun haan bolta hai, kis baat pe</td></tr>
+  <tr><td>Ek reseller (Pro)</td><td class="num">₹10,000</td><td class="num">1–2 din</td>
+      <td>Kam — wo baat karta hai, tum nahi</td></tr>
+</table>
+<p style="font-size:13px;color:var(--mut);margin:4px 0 0">
+Isiliye dono karo, par <b>pehle 20 card khud becho.</b> Jo tum khud nahi bech paye, wo reseller ko
+sikha nahi paoge — aur wo do hafte me chhod dega.
+</p>
+</div>
+
+<h2>4. Reseller kaun banega</h2>
+
+<p class="sub">Sabse achhe reseller wo hain jo <b>pehle se in dukaanon ko kuch bech rahe hain.</b> Naya rishta banane ki zaroorat nahi.</p>
+
+<div class="card">
+<table>
+  <tr><th>Kaun</th><th>Kyun sahi hai</th><th class="num">Priority</th></tr>
+  <tr>
+    <td><b>Printing press / visiting card ki dukaan</b></td>
+    <td>Wo aaj bhi kaagaz ke card bech rahe hain — bilkul isi customer ko. Unke paas order
+        aata hai, wo bas ek line jodenge: "digital bhi le lo, ₹999."</td>
+    <td class="num"><span class="pill p-hi">Sabse pehle</span></td>
+  </tr>
+  <tr>
+    <td><b>Flex board / signage banane wale</b></td>
+    <td>Dukaan ke bahar board wahi lagate hain. Counter pe QR standee unka hi kaam hai.</td>
+    <td class="num"><span class="pill p-hi">Sabse pehle</span></td>
+  </tr>
+  <tr>
+    <td><b>Local digital marketing freelancer</b></td>
+    <td>Client pehle se hain, par unke paas bechne ko kuch sasta nahi hota. Ye ₹999 wali cheez
+        unke liye darwaza kholne ka bahana hai.</td>
+    <td class="num"><span class="pill p-hi">Sabse pehle</span></td>
+  </tr>
+  <tr>
+    <td>Website banane wale / small web agency</td>
+    <td>Samajh jaate hain turant. Par wo ₹15,000 ki website bechte hain, ₹999 unhe chhota lagta hai.</td>
+    <td class="num"><span class="pill p-md">Doosre number</span></td>
+  </tr>
+  <tr>
+    <td>CSC / online seva kendra</td>
+    <td>Har taluka me hain, dukaandaron se roz milte hain. Par technical samajh kam.</td>
+    <td class="num"><span class="pill p-md">Doosre number</span></td>
+  </tr>
+  <tr>
+    <td>Mobile shop / recharge wale</td>
+    <td>Bahut log aate hain, par ye service bechna unki aadat nahi.</td>
+    <td class="num"><span class="pill p-lo">Baad me</span></td>
+  </tr>
+</table>
+</div>
+
+<h2>5. Kya bolna hai</h2>
+
+<div class="card">
+<h3 style="margin-top:0">Dukaan pe pehle 30 second</h3>
+<div class="script">
+"Namaste. Ek minute? … Aapka Google pe kitne review hain? <b>[wo batayega, ya phone nikalega]</b><br><br>
+Dekhiye — jo customer khush hota hai wo chup chala jaata hai. Jo naraz hota hai wahi Google pe
+likhta hai. Isliye rating girti rehti hai.<br><br>
+Mai counter pe ek QR lagata hoon. Customer star dabata hai. <b>4–5 star wale seedha Google pe
+chale jaate hain.</b> 3 ya usse kam wale ek private form pe jaate hain — wo aapke paas aata hai,
+Google pe nahi.<br><br>
+Saal ka ₹999. Ek naya customer bhi aa gaya to paisa nikal aaya."
+</div>
+</div>
+
+<div class="card">
+<h3 style="margin-top:0">Jo sawal aayenge</h3>
+<table>
+  <tr><th style="width:34%">Wo kahega</th><th>Tum kaho</th></tr>
+  <tr>
+    <td>"Mehnga hai"</td>
+    <td>"Saal ka ₹999 — mahine ka ₹83. Aapka ek customer kitne ka hai? … to ek customer se hi
+        paisa nikal aaya. Baaki saal muft."</td>
+  </tr>
+  <tr>
+    <td>"Mera to Instagram hai"</td>
+    <td>"Instagram pe log tab aate hain jab aapko jaante hain. Google pe wo aate hain jo aapko
+        dhoondh rahe hain. Ye doosri wali baat hai."</td>
+  </tr>
+  <tr>
+    <td>"Ye galat nahi hai? Reviews rokna?"</td>
+    <td>"Rokte nahi. Customer chahe to Google pe jaakar likh sakta hai, koi bandish nahi.
+        Hum bas <i>pehle</i> aapse poochte hain — jaise aap khud counter pe poochte ho ki
+        'sab theek tha na?' Bas wahi, likhit me."</td>
+  </tr>
+  <tr>
+    <td>"Baad me batata hoon"</td>
+    <td>"Theek hai. Ek kaam karta hoon — abhi 10 minute me aapka card bana kar link bhejta hoon.
+        Dekh lijiye. Pasand aaye to paisa dijiye." <br><span style="color:var(--mut)">Yahi sabse
+        zyada chalta hai. Banane me kuch nahi lagta, aur banne ke baad mana karna mushkil hai.</span></td>
+  </tr>
+  <tr>
+    <td>"Mera bhatija banata hai ye sab"</td>
+    <td>"Achhi baat hai. Wo card bana dega. Review wala hissa bhi bana dega? Wo alag cheez hai —
+        star ke hisaab se do alag raste."</td>
+  </tr>
+</table>
+</div>
+
+<h2>6. 90 din ka plan</h2>
+
+<div class="card">
+<table>
+  <tr><th>Kab</th><th>Kaam</th><th class="num">Target</th><th class="num">Kamai</th></tr>
+  <tr>
+    <td><b>Din 1–30</b></td>
+    <td>Sirf tum. Saswad + Pune ke 2 ilaake. Salon, gym, clinic.
+        Har din 10 dukaan. Card pehle bana kar dikhana.</td>
+    <td class="num">20 card</td><td class="num">₹19,980</td>
+  </tr>
+  <tr>
+    <td><b>Din 31–60</b></td>
+    <td>Pehle 20 se <b>reference maango</b> aur unke reviews ka before/after screenshot lo.
+        Wahi tumhara asli sales material hai. Sath me 5 printing press se baat.</td>
+    <td class="num">30 card + 2 reseller</td><td class="num">₹49,970</td>
+  </tr>
+  <tr>
+    <td><b>Din 61–90</b></td>
+    <td>Reseller ko sikhana aur unse chalwana. Tum sirf clinic aur bade customer pe.</td>
+    <td class="num">30 card + 3 reseller</td><td class="num">₹59,970</td>
+  </tr>
+</table>
+<p style="font-size:13px;color:var(--mut);margin:6px 0 0">
+Reseller ki kamai Pro plan (₹10,000) ke hisaab se ginii hai. Numbers target hain, waada nahi —
+asli baat ye hai ki <b>har mahine pichhle mahine ki seekh se chalna hai.</b>
+</p>
+</div>
+
+<h2>7. Kya naapna hai</h2>
+
+<div class="card">
+<table>
+  <tr><th>Cheez</th><th>Kyun</th><th>Kahan dikhega</th></tr>
+  <tr><td>Kitne dukaan gaye → kitne haan</td>
+      <td>10 me 1 se kam haan aaye to pitch galat hai, market nahi</td>
+      <td>Khud likhna, copy me</td></tr>
+  <tr><td>Card banne ke baad views</td>
+      <td>Views 0 hain matlab QR laga hi nahi — wo customer renew nahi karega</td>
+      <td><b>/admin/analytics</b></td></tr>
+  <tr><td>Private feedback aaya ya nahi</td>
+      <td>Aaya matlab funnel chal raha hai aur ek kharab review bacha</td>
+      <td><b>/admin/feedback</b></td></tr>
+  <tr><td>Renewal ke 30 din bache</td>
+      <td>Renewal hi asli dhandha hai — pehla saal to mehnat hai</td>
+      <td><b>/admin/analytics</b> → "Renewing soon"</td></tr>
+</table>
+</div>
+
+<div class="warnbox">
+  <b>Sabse zaroori aadat:</b> card banane ke <b>7 din baad</b> customer ko phone karo aur poocho
+  ki QR standee counter pe laga ya nahi. Jo laga nahi, uska card mara hua hai — views 0 rahenge,
+  aur saal baad wo kahega "kuch faayda nahi hua". Ye ek phone call renewal bacha leta hai.
+</div>
+
+<p class="foot">
+Is document me plans ke daam, wallet aur per-card charges seedhe tumhare database se liye gaye hain
+(10 Aug 2026). Segment ke score mera aanklan hain — koi survey nahi — isliye pehle 20 customer ke
+baad in scores ko apne asli anubhav se badal dena.<br><br>
+<b>Ek gadbad theek karni hai:</b> Starter plan ke features me "Renewal ₹200/saal" likha hai,
+par database me renewal ₹150 hai. <b>/admin/plans</b> se sudhaar lena.
+</p>
+
+</div>
+</body>
+</html>

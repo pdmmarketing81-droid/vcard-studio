@@ -2,9 +2,12 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { supabaseServer } from '@/lib/supabase-server';
 import { guardApi } from '@/lib/auth';
-import { businessRow, uniqueSlug, writeChildren, revalidateCard } from '@/lib/adminCards';
+import {
+  businessRow, uniqueSlug, writeChildren, revalidateCard, collectCardMedia,
+} from '@/lib/adminCards';
 import { auditAction } from '@/lib/audit';
 import { rateLimit, callerKey, tooManyRequests } from '@/lib/rateLimit';
+import { deleteMedia } from '@/lib/storage';
 import type { Profile } from '@/lib/session';
 
 /**
@@ -179,7 +182,7 @@ export async function DELETE(req: Request) {
   const db = supabaseAdmin();
   const { data: card } = await db
     .from('businesses')
-    .select('slug, custom_domain, owner_id')
+    .select('slug, custom_domain, owner_id, logo_url, cover_url')
     .eq('id', id)
     .maybeSingle();
 
@@ -190,6 +193,13 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'That card is not yours.' }, { status: 403 });
   }
 
+  /* Gathered BEFORE the delete, because the rows that name these files are
+     about to cascade away and there is no second chance to find out what this
+     card owned. Until this existed, deleting a card removed the row and left
+     every photo and video in the bucket for ever — storage nobody could see,
+     nobody could reach, and nobody stopped paying for. */
+  const media = await collectCardMedia(db, id);
+
   // Child rows cascade via FK, so one delete is enough. The wallet charge is
   // deliberately NOT refunded: the card was made, and a reseller who could
   // delete-and-recreate for free would have an unlimited free tier.
@@ -199,14 +209,18 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'Could not delete that card.' }, { status: 500 });
   }
 
+  // After the row is gone, so a storage hiccup can never leave a card that is
+  // half-deleted — files missing but the card still listed.
+  const removed = await deleteMedia(media);
+
   revalidateCard(card.slug, card.custom_domain);
 
   await auditAction({
     action: 'card.delete',
     targetType: 'business',
     targetId: id,
-    detail: { slug: card.slug, owner_id: card.owner_id },
+    detail: { slug: card.slug, owner_id: card.owner_id, files_removed: removed },
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, files_removed: removed });
 }

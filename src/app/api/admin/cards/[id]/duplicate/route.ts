@@ -13,8 +13,15 @@ import { uniqueSlug, CHILD_TABLES } from '@/lib/adminCards';
  * The copy is created unpublished and without a custom domain — a duplicate
  * silently going live on someone else's domain would be a nasty surprise.
  */
+/* main_admin only, and that is load-bearing rather than lazy.
+   This route does two things it should not if it were opened up: it clones any
+   card by id without checking who owns it, and it never calls debit_for_card,
+   so the copy is free. For a main admin both are harmless — they can reach
+   every card anyway and their own cards cost nothing. Before letting a reseller
+   near it, add canManageCard() and the wallet charge, or it becomes a way to
+   mint unlimited free cards from someone else's work. */
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-  const gate = await guardApi();
+  const gate = await guardApi('main_admin');
   if ('response' in gate) return gate.response;
 
   const db = supabaseAdmin();

@@ -142,6 +142,9 @@ export default async function ResellerPage({ params }: { params: { id: string } 
               renewal_percent: 0,
               card_limit: null,
               grace_days: 7,
+              // Off for a brand new reseller. Granting a paid feature by
+              // default is how it ends up given away without anyone deciding to.
+              grants: {},
               notes: null,
             }) as Terms
           }

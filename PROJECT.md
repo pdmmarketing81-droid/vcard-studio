@@ -532,3 +532,49 @@ what a billing dispute turns on.
 - `CRON_SECRET` exposed in screenshots four times; rotate it
 - VPS restart pending; ufw inactive; n8n (32770) exposed
 - No staging — every push goes straight to production
+
+---
+
+## PARKED — paused 9 Aug 2026 to start selling
+
+Work stopped here deliberately. Everything below is worth doing and none of it
+blocks taking money by hand.
+
+### Cloudflare (half-done: nothing changed yet)
+Plan agreed, nothing applied. Free plan needs the whole `pdmmarketing.in` zone
+moved to Cloudflare nameservers.
+- Export Hostinger DNS first (21 records; the export button is on the DNS page)
+- Copy all 21 across — do NOT prune. Only `app` is truly dead; `worker` still
+  has a Traefik route. Deleting saves nothing and breaks things months later.
+- **Only `wizart` goes orange.** Everything else DNS-only.
+- The five mail CNAMEs (`autodiscover`, `autoconfig`, three `_domainkey`) MUST
+  be grey. Cloudflare turns CNAMEs orange by default and that breaks DKIM —
+  every email would start landing in spam.
+- SSL/TLS mode → **Full (strict)** BEFORE switching nameservers, or the site
+  goes into a redirect loop.
+- Then set `TRUST_CF_HEADER=true` in .env.local — without it rate limiting
+  counts every visitor as one Cloudflare edge IP and locks out whole regions.
+- Origin IP will NOT be hidden either way: voltandpine.com resolves to the same
+  server and its DNS is not ours.
+
+### R2 custom domain
+Images still come from r2.dev, which Cloudflare throttles and barely caches.
+Bind a custom domain to the bucket once the zone is on Cloudflare.
+
+### Known, not urgent
+- MX priority is wrong: `SMTP.GOOGLE.COM` at 1 outranks Hostinger at 5/10, so
+  incoming mail for the domain tries Google first. Outbound is unaffected, which
+  is all we use today.
+- `app.pdmmarketing.in` is a dead DNS record; `worker` answers nothing but has
+  a Traefik route.
+- ufw inactive; n8n/hermes/evolution-api published on 0.0.0.0 (32768-32770).
+- VPS restart still pending.
+- No staging environment.
+
+### Before taking REAL money
+1. Razorpay KYC → live keys → swap `NEXT_PUBLIC_RAZORPAY_KEY_ID` and
+   `RAZORPAY_KEY_SECRET`
+2. Create a LIVE-mode webhook (test-mode webhooks do not fire on live payments)
+   and put its secret in `RAZORPAY_WEBHOOK_SECRET`
+3. Rotate `CRON_SECRET` — exposed in screenshots four times
+4. One real ₹1 payment end to end, then check the wallet ledger in SQL

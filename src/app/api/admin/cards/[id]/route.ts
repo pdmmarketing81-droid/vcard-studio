@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { guardApi, canManageCard } from '@/lib/auth';
-import { businessRow, uniqueSlug, writeChildren, revalidateCard } from '@/lib/adminCards';
+import {
+  businessRow, uniqueSlug, writeChildren, revalidateCard, collectCardMedia,
+} from '@/lib/adminCards';
+import { deleteMedia } from '@/lib/storage';
 
 const FULL_SELECT = `
   *,
@@ -80,6 +83,13 @@ export async function PATCH(req: Request, { params }: Ctx) {
     p_key: 'reviews',
   });
 
+  /* What the card points at right now, before anything is overwritten.
+     Changing a logo used to leave the old one in the bucket for ever. Nobody
+     noticed, because nothing looked wrong — the card showed the new picture and
+     the old file just sat there being paid for. A shop that redoes its photos
+     twice a year would leave a trail nobody could ever find again. */
+  const before = await collectCardMedia(db, params.id);
+
   const { data: updated, error } = await db
     .from('businesses')
     .update({
@@ -93,6 +103,14 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const warnings = await writeChildren(db, params.id, body, { replace: true });
+
+  /* Anything that was there before and is not there now is nobody's file.
+     Done after the write, and only on the difference — deleting first would
+     mean a failed save leaves a card pointing at pictures that no longer
+     exist, which is worse than paying for a few stray files. */
+  const after = new Set(await collectCardMedia(db, params.id));
+  const orphans = before.filter((u) => !after.has(u));
+  if (orphans.length) await deleteMedia(orphans);
 
   revalidateCard(slug, updated.custom_domain);
   if (existing.slug !== slug) revalidateCard(existing.slug, existing.custom_domain);

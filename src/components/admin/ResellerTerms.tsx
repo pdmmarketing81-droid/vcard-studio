@@ -15,6 +15,8 @@ export interface Terms {
   renewal_percent: number;
   card_limit: number | null;
   grace_days: number;
+  /** What this reseller may sell on. Empty means nothing beyond a plain card. */
+  grants: { reviews?: boolean };
   notes: string | null;
 }
 
@@ -281,6 +283,30 @@ export default function ResellerTerms({
                   t.grace_days === 1 ? '' : 's'
                 } of grace, then shows our contact page instead of going dead.`}
           </p>
+        </div>
+
+        {/* Kept next to the money, not hidden in a settings tab, because this
+            is a thing being sold — a reseller who was promised the review
+            funnel and never granted it finds out from an unhappy customer. */}
+        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+          <p className={label}>This reseller can sell</p>
+          <label className="flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={t.grants?.reviews === true}
+              onChange={(e) =>
+                setT({ ...t, grants: { ...t.grants, reviews: e.target.checked } })
+              }
+            />
+            <span>
+              Review funnel
+              <span className="mt-0.5 block text-xs text-slate-500">
+                Applies to their own cards and to every customer under them. Leave
+                this off and their Reviews tab shows an upgrade prompt instead.
+              </span>
+            </span>
+          </label>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
