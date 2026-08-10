@@ -10,6 +10,20 @@ const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
 export default async function NewCardPage() {
   const me = await requireAdmin('main_admin', 'sub_admin');
+
+  /* The same question the edit screen asks, asked here too — because it was
+     not, and the two screens disagreed. Creating a card showed a fully editable
+     Reviews tab, the API then forced review_enabled off, and the edit screen
+     afterwards said the feature was not in the plan. The reseller filled in a
+     Google link, saved, and was told to pay for what the form had just offered.
+
+     Asked about the creator rather than the chosen owner, and that is correct
+     rather than convenient: the grant follows whoever pays, and for a reseller
+     making a card for their customer, that is the reseller. */
+  const { data: reviewsOk } = await supabaseAdmin().rpc('has_grant', {
+    p_profile: me.id,
+    p_key: 'reviews',
+  });
   const db = supabaseAdmin();
 
   /* A reseller may only pick from themselves and their own customers. The list
@@ -57,7 +71,12 @@ export default async function NewCardPage() {
           ← Back
         </Link>
       </div>
-      <AdminForm owners={owners} defaultOwner={me.id} costNote={costNote} />
+      <AdminForm
+        owners={owners}
+        defaultOwner={me.id}
+        costNote={costNote}
+        canUseReviews={reviewsOk === true}
+      />
     </div>
   );
 }
