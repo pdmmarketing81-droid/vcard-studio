@@ -4,7 +4,11 @@ import { putMedia, sniffType, mediaPath } from '@/lib/storage';
 import { checkDimensions, stripMetadata } from '@/lib/imageSafety';
 import { rateLimit, callerKey, tooManyRequests } from '@/lib/rateLimit';
 
-export const MAX_BYTES = 8 * 1024 * 1024;
+/* Not exported. A route file may only export the handlers and Next's own
+   config fields (dynamic, revalidate, runtime …); anything else fails the
+   build with "is not a valid Route export field". Exporting this was a habit
+   from ordinary modules and it broke the deploy. */
+const MAX_BYTES = 8 * 1024 * 1024;
 
 /* Multipart wrapping — the boundary lines and the part headers — adds a little
    to the wire size, so a file exactly on the limit arrives slightly over it.
