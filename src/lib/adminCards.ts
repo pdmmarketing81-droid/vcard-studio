@@ -1,5 +1,6 @@
 import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from './supabase';
+import { parseLatLng } from './geo';
 import { slugify, normaliseDomain } from './slug';
 
 export type Db = ReturnType<typeof supabaseAdmin>;
@@ -55,11 +56,33 @@ export function businessRow(body: Body, slug: string) {
     logo_url: str(body.logo_url),
     cover_url: str(body.cover_url),
     cover_type: body.cover_type === 'video' ? 'video' : 'image',
+    cover_sound: body.cover_sound === true,
+    cover_audio_url: str(body.cover_audio_url),
     email: str(body.email),
     phone: str(body.phone),
     whatsapp: str(body.whatsapp),
     address: str(body.address),
     website: str(body.website),
+
+    /* The pin is parsed here rather than trusted from the browser. The form
+       sends whatever was pasted — a Maps link, coordinates, or nothing — and
+       anything unreadable becomes null instead of a wrong pin. A card with no
+       coordinates falls back to searching the address, which is what every
+       card did before. */
+    ...(() => {
+      const at = parseLatLng(String(body.map_location ?? ''));
+      return { map_lat: at?.lat ?? null, map_lng: at?.lng ?? null };
+    })(),
+
+    /* Only keys we know, de-duplicated, order preserved. A value from the form
+       ends up controlling a render loop, so it is filtered against a fixed list
+       rather than stored as sent. */
+    contact_order: (() => {
+      const allowed = ['phone', 'address', 'email', 'website'];
+      const sent = Array.isArray(body.contact_order) ? (body.contact_order as string[]) : [];
+      const kept = sent.filter((k) => allowed.includes(k));
+      return Array.from(new Set([...kept, ...allowed]));
+    })(),
     custom_domain: body.custom_domain ? normaliseDomain(String(body.custom_domain)) : null,
     theme_color: (body.theme_color as string) || '#0f766e',
     template: (body.template as string) || 'classic',

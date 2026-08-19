@@ -12,6 +12,7 @@ import { waLink } from '@/lib/slug';
 import { SocialIcon, SocialButton } from './SocialIcon';
 import ShareBar from './ShareBar';
 import { About, Contact, MapSection, QrSection } from './sections/Basics';
+import CoverMedia from './CoverMedia';
 import { Services, Packages, Testimonials } from './sections/Catalog';
 import Hours from './sections/Hours';
 import Gallery from './sections/Gallery';
@@ -55,7 +56,9 @@ export default function CardView({
     gallery: (x) => <Gallery items={b.gallery_items} d={d} titleRule={rule} title={sectionLabel(tpl, 'gallery', 'Gallery')} delay={x} />,
     videos: (x) => <Videos videos={b.videos} d={d} titleRule={rule} title={sectionLabel(tpl, 'videos', 'Videos')} delay={x} />,
     testimonials: (x) => <Testimonials testimonials={b.testimonials} d={d} titleRule={rule} title={sectionLabel(tpl, 'testimonials', 'Testimonials')} delay={x} />,
-    map: (x) => <MapSection address={b.address} d={d} delay={x} />,
+    map: (x) => (
+      <MapSection address={b.address} lat={b.map_lat} lng={b.map_lng} d={d} delay={x} />
+    ),
     qr: (x) => <QrSection slug={b.slug} cardUrl={cardUrl} d={d} titleRule={rule} preview={preview} delay={x} />,
     share: (x) => <ShareBar url={cardUrl} title={b.name} d={d} titleRule={rule} delay={x} />,
   };
@@ -77,10 +80,13 @@ export default function CardView({
             style={{ borderRadius: HERO_RADIUS[d.heroShape] ?? 'var(--radius)' }}
           >
             {b.cover_type === 'video' ? (
-              // eslint-disable-next-line jsx-a11y/media-has-caption
-              <video src={b.cover_url} autoPlay muted loop playsInline preload="metadata"
+              <CoverMedia
+                src={b.cover_url}
+                sound={b.cover_sound}
+                audioUrl={b.cover_audio_url}
                 className="w-full object-cover"
-                style={{ aspectRatio: circle ? '1 / 1' : ratioCss(d.heroRatio, '4:3') }} />
+                style={{ aspectRatio: circle ? '1 / 1' : ratioCss(d.heroRatio, '4:3') }}
+              />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={b.cover_url} alt="" className="w-full object-cover"

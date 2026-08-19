@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { slugify } from '@/lib/slug';
+import { parseLatLng, isShortMapsLink } from '@/lib/geo';
 import { TEMPLATES, getTemplate } from '@/lib/templates';
 import type { BusinessFull, SocialPlatform } from '@/lib/types';
 import type { CardDesign } from '@/lib/design';
@@ -207,6 +208,25 @@ export default function AdminForm({
     })) ?? []
   );
 
+  const [coverSound, setCoverSound] = useState(initial?.cover_sound ?? false);
+  const [coverAudioUrl, setCoverAudioUrl] = useState(s(initial?.cover_audio_url));
+
+  /* Kept as the raw string the person pasted, not as two number boxes.
+     Nobody has latitude to hand; everybody can share a pin from Google Maps.
+     Parsing happens on the way in and again on the server, so the box can hold
+     a link, coordinates, or nonsense without breaking anything. */
+  const [mapLocation, setMapLocation] = useState(
+    initial?.map_lat != null && initial?.map_lng != null
+      ? `${initial.map_lat}, ${initial.map_lng}`
+      : ''
+  );
+
+  const [contactOrder, setContactOrder] = useState<string[]>(
+    Array.isArray(initial?.contact_order) && initial.contact_order.length
+      ? initial.contact_order
+      : ['phone', 'address', 'email', 'website']
+  );
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -232,11 +252,18 @@ export default function AdminForm({
       logo_url: logoUrl || null,
       cover_url: coverUrl || null,
       cover_type: coverType,
+      cover_sound: coverSound,
+      cover_audio_url: coverAudioUrl || null,
       email: email || null,
       phone: phone || null,
       whatsapp: whatsapp || null,
       address: address || null,
       website: website || null,
+      // Parsed in the preview too, so a bad paste shows as "no pin" here rather
+      // than being discovered after saving.
+      map_lat: parseLatLng(mapLocation)?.lat ?? null,
+      map_lng: parseLatLng(mapLocation)?.lng ?? null,
+      contact_order: contactOrder,
       theme_color: themeColor,
       template,
       extras,
@@ -327,7 +354,12 @@ export default function AdminForm({
         ...(editing ? { slug: customSlug } : {}),
         ...(!editing && ownerId ? { owner_id: ownerId } : {}),
         logo_url: logoUrl, cover_url: coverUrl, cover_type: coverType,
+        cover_sound: coverSound, cover_audio_url: coverAudioUrl,
         email, phone, whatsapp, address, website,
+        // Sent raw. The server parses it — the browser does not get to decide
+        // where the pin lands.
+        map_location: mapLocation,
+        contact_order: contactOrder,
         custom_domain: customDomain, theme_color: themeColor,
         social_links: links,
         services, packages, testimonials,
@@ -457,8 +489,80 @@ export default function AdminForm({
                 <input className={inputClass} value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://business.com" />
               </Field>
             </div>
-            <Field label="Address" hint="Also renders an embedded Google map.">
+            <Field label="Address" hint="Shown on the card as written.">
               <input className={inputClass} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Sector 44, Gurugram, Haryana 122003" />
+            </Field>
+
+            <Field
+              label="Exact location on the map"
+              hint="Open Google Maps on your phone, find the shop, press Share, and paste the link here. Or paste coordinates like 24.5362, 81.3037."
+            >
+              <input
+                className={inputClass}
+                value={mapLocation}
+                onChange={(e) => setMapLocation(e.target.value)}
+                placeholder="Paste a Google Maps link, or 24.5362, 81.3037"
+              />
+              {/* Told immediately rather than after saving, because a wrong pin
+                  looks exactly like a right one until somebody drives to it. */}
+              {mapLocation.trim() && !parseLatLng(mapLocation) && (
+                <p className="mt-1.5 text-xs text-amber-700">
+                  {isShortMapsLink(mapLocation)
+                    ? 'Short maps.app.goo.gl links do not carry the location. Open it once in a browser and copy the long link from the address bar.'
+                    : 'Could not read a location from that. Paste the full Google Maps link, or two numbers separated by a comma.'}
+                </p>
+              )}
+              {parseLatLng(mapLocation) && (
+                <p className="mt-1.5 text-xs text-emerald-700">
+                  Pin set — {parseLatLng(mapLocation)!.lat}, {parseLatLng(mapLocation)!.lng}
+                </p>
+              )}
+              {!mapLocation.trim() && address && (
+                <p className="mt-1.5 text-xs text-slate-500">
+                  Empty means the map searches for the address text, which lands on the
+                  wrong place for anything outside a city.
+                </p>
+              )}
+            </Field>
+
+            <Field label="Order of the contact rows" hint="Whatever you most want tapped should sit first.">
+              <div className="space-y-1.5">
+                {contactOrder.map((key, i) => (
+                  <div key={key} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <span className="w-5 text-xs text-slate-400">{i + 1}</span>
+                    <span className="flex-1 text-sm capitalize text-slate-700">{key}</span>
+                    <button
+                      type="button"
+                      disabled={i === 0}
+                      onClick={() => {
+                        const next = [...contactOrder];
+                        [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                        setContactOrder(next);
+                      }}
+                      className="rounded px-2 py-1 text-slate-500 hover:bg-slate-100 disabled:opacity-25"
+                      aria-label={`Move ${key} up`}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      disabled={i === contactOrder.length - 1}
+                      onClick={() => {
+                        const next = [...contactOrder];
+                        [next[i], next[i + 1]] = [next[i + 1], next[i]];
+                        setContactOrder(next);
+                      }}
+                      className="rounded px-2 py-1 text-slate-500 hover:bg-slate-100 disabled:opacity-25"
+                      aria-label={`Move ${key} down`}
+                    >
+                      ↓
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-1.5 text-xs text-slate-400">
+                Rows with nothing filled in are skipped on the card.
+              </p>
             </Field>
           </Panel>
 
@@ -569,6 +673,46 @@ export default function AdminForm({
                 </label>
               ))}
             </div>
+
+            {coverType === 'video' && (
+              <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                <label className="flex items-start gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={coverSound}
+                    onChange={(e) => setCoverSound(e.target.checked)}
+                  />
+                  <span>
+                    Let visitors turn sound on
+                    <span className="mt-0.5 block text-xs text-slate-500">
+                      A speaker button appears on the video. It cannot start with sound
+                      on its own — every browser blocks that, and one that tried would
+                      often be refused permission to play at all.
+                    </span>
+                  </span>
+                </label>
+
+                {coverSound && (
+                  <div className="mt-4">
+                    <p className="mb-1 text-xs font-semibold text-slate-500">
+                      Different track instead of the video&apos;s own sound (optional)
+                    </p>
+                    <UploadInput
+                      value={coverAudioUrl}
+                      onChange={setCoverAudioUrl}
+                      folder="audio"
+                      accept="audio/mpeg,audio/mp3,audio/aac,audio/mp4,audio/wav"
+                    />
+                    <p className="mt-1.5 text-xs text-slate-500">
+                      Leave empty to use the video&apos;s own audio. With a track here the
+                      video stays silent and this plays instead — two sounds at once is
+                      never what anyone means.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </Panel>
 
           <Panel title={label('gallery', 'Gallery')}>

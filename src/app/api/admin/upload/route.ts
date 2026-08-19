@@ -4,7 +4,12 @@ import { putMedia, sniffType, mediaPath } from '@/lib/storage';
 import { checkDimensions, stripMetadata } from '@/lib/imageSafety';
 import { rateLimit, callerKey, tooManyRequests } from '@/lib/rateLimit';
 
-const MAX_BYTES = 8 * 1024 * 1024;
+export const MAX_BYTES = 8 * 1024 * 1024;
+
+/* Multipart wrapping — the boundary lines and the part headers — adds a little
+   to the wire size, so a file exactly on the limit arrives slightly over it.
+   Without this slack an 8 MB file would be refused for being 8 MB. */
+const WIRE_SLACK = 64 * 1024;
 
 export async function POST(req: Request) {
   /* This is the one authenticated route that writes to storage we pay for.
@@ -22,6 +27,29 @@ export async function POST(req: Request) {
   const gate = await guardApi('main_admin', 'sub_admin', 'end_user');
   if ('response' in gate) return gate.response;
 
+  /* Size is checked from the header FIRST, before a single byte is parsed.
+     It used to be checked after req.formData(), which meant a 60 MB video was
+     read entirely into memory and only then called too large — and often the
+     connection died first, so the browser got Traefik's "Bad Gateway" instead
+     of our message. The uploader then showed
+     `Unexpected token 'B', "Bad Gateway" is not valid JSON`, which tells the
+     person nothing about the actual problem: their file is too big.
+
+     A missing or lying Content-Length still gets caught by the second check
+     below; this one exists so the honest case never has to buffer at all. */
+  const declared = Number(req.headers.get('content-length') ?? 0);
+  if (declared > MAX_BYTES + WIRE_SLACK) {
+    return NextResponse.json(
+      {
+        error:
+          `That file is ${(declared / 1024 / 1024).toFixed(1)} MB. ` +
+          `The limit is ${MAX_BYTES / 1024 / 1024} MB — try a shorter video, ` +
+          `or upload it to YouTube and paste the link instead.`,
+      },
+      { status: 413 }
+    );
+  }
+
   const form = await req.formData();
   const file = form.get('file');
   const folder = String(form.get('folder') ?? 'misc');
@@ -31,8 +59,12 @@ export async function POST(req: Request) {
   }
   if (file.size > MAX_BYTES) {
     return NextResponse.json(
-      { error: `File is too large (max ${MAX_BYTES / 1024 / 1024} MB)` },
-      { status: 400 }
+      {
+        error:
+          `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB. ` +
+          `The limit is ${MAX_BYTES / 1024 / 1024} MB.`,
+      },
+      { status: 413 }
     );
   }
 
@@ -42,7 +74,7 @@ export async function POST(req: Request) {
   const type = sniffType(raw);
   if (!type) {
     return NextResponse.json(
-      { error: 'Unsupported file. Please upload a JPG, PNG, WebP, GIF, MP4 or WebM.' },
+      { error: 'Unsupported file. Please upload a JPG, PNG, WebP, GIF, MP4, WebM, MP3, M4A or WAV.' },
       { status: 400 }
     );
   }

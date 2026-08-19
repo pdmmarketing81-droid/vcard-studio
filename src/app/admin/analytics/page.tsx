@@ -2,6 +2,8 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { requireAdmin } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { TEMPLATES } from '@/lib/templates';
+import ExportPanel from '@/components/admin/ExportPanel';
 
 export const metadata: Metadata = { title: 'Analytics · Wizart Studio' };
 export const dynamic = 'force-dynamic';
@@ -39,9 +41,13 @@ export default async function AnalyticsPage() {
   const me = await requireAdmin('main_admin', 'sub_admin');
   const db = supabaseAdmin();
 
-  const [{ data: raw }, { data: series }] = await Promise.all([
+  const [{ data: raw }, { data: series }, { data: sellers }] = await Promise.all([
     db.rpc('dashboard_stats', { p_profile: me.id }),
     db.rpc('views_series', { p_profile: me.id, p_days: 30 }),
+    // Only the main admin sees the export, so only they need this list.
+    me.role === 'main_admin'
+      ? db.from('profiles').select('id, full_name, business_name').eq('role', 'sub_admin')
+      : Promise.resolve({ data: [] as { id: string; full_name: string | null; business_name: string | null }[] }),
   ]);
 
   const s = (raw ?? {}) as Partial<Stats>;
@@ -170,6 +176,21 @@ export default async function AnalyticsPage() {
             <Stat label="Resellers" value={num(s.resellers ?? 0)} />
             <Stat label="Customers" value={num(s.customers ?? 0)} />
           </div>
+        </>
+      )}
+
+      {isMain && (
+        <>
+          <h2 className="mb-3 mt-8 text-sm font-bold uppercase tracking-wide text-slate-400">
+            Export
+          </h2>
+          <ExportPanel
+            resellers={(sellers ?? []).map((r) => ({
+              id: r.id,
+              label: r.business_name || r.full_name || 'Reseller',
+            }))}
+            templates={TEMPLATES.map((t) => ({ id: t.id, label: t.name }))}
+          />
         </>
       )}
 

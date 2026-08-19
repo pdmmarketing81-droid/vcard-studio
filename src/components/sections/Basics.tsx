@@ -3,6 +3,7 @@ import type { TemplateDef } from '@/lib/templates';
 import type { ResolvedDesign } from '@/lib/design';
 import { panelClass, revealClass } from '@/lib/design';
 import { normalisePhone } from '@/lib/slug';
+import { mapEmbedSrc, mapLinkHref } from '@/lib/geo';
 import Section from './Section';
 import LazyMount from '../LazyMount';
 
@@ -72,29 +73,50 @@ export function Contact({
 }: Common & { business: BusinessFull }) {
   if (!b.email && !b.phone && !b.address && !b.website) return null;
 
-  const rows: Array<{ href: string; path: string; circle?: boolean; text: string }> = [];
-  if (b.email) rows.push({ href: `mailto:${b.email}`, path: icons.mail, text: b.email });
-  if (b.phone) rows.push({ href: `tel:${normalisePhone(b.phone)}`, path: icons.phone, text: b.phone });
-  if (b.address)
-    rows.push({
-      href: `https://maps.google.com/?q=${encodeURIComponent(b.address)}`,
-      path: icons.pin,
-      text: b.address,
-    });
-  if (b.website)
-    rows.push({
-      href: b.website,
-      path: icons.globe,
-      circle: true,
-      text: b.website.replace(/^https?:\/\//, ''),
-    });
+  type Row = { key: string; href: string; path: string; circle?: boolean; text: string };
+
+  const available: Record<string, Row | null> = {
+    phone: b.phone
+      ? { key: 'phone', href: `tel:${normalisePhone(b.phone)}`, path: icons.phone, text: b.phone }
+      : null,
+    address: b.address
+      ? {
+          key: 'address',
+          // Coordinates when the owner gave them, the address text otherwise.
+          href: mapLinkHref(b) ?? `https://maps.google.com/?q=${encodeURIComponent(b.address)}`,
+          path: icons.pin,
+          text: b.address,
+        }
+      : null,
+    email: b.email
+      ? { key: 'email', href: `mailto:${b.email}`, path: icons.mail, text: b.email }
+      : null,
+    website: b.website
+      ? {
+          key: 'website',
+          href: b.website,
+          path: icons.globe,
+          circle: true,
+          text: b.website.replace(/^https?:\/\//, ''),
+        }
+      : null,
+  };
+
+  /* The owner's chosen order, then anything they never mentioned.
+     Appending the leftovers matters: a card saved before this existed has no
+     preference, and a stricter reading would show it an empty contact panel.
+     Unknown keys are dropped rather than trusted — the list comes from the
+     database and a stray value must not become a blank row. */
+  const wanted = Array.isArray(b.contact_order) ? (b.contact_order as string[]) : [];
+  const order = [...wanted, ...Object.keys(available).filter((k) => !wanted.includes(k))];
+  const rows = order.map((k) => available[k]).filter((r): r is Row => !!r);
 
   return (
     <Section d={d} titleRule={titleRule} title={title} delay={delay}>
       <div className="-my-2">
         {rows.map((r, i) => (
           <a
-            key={r.href}
+            key={r.key}
             href={r.href}
             className={`${revealClass(d)} group flex items-center gap-3.5 border-b py-3 last:border-0`}
             style={{
@@ -130,14 +152,20 @@ export function Contact({
 
 export function MapSection({
   address,
+  lat = null,
+  lng = null,
   d,
   delay = 0,
 }: {
   address: string | null;
+  /** The precise pin, when the owner supplied one. */
+  lat?: number | null;
+  lng?: number | null;
   d: ResolvedDesign;
   delay?: number;
 }) {
-  if (!address) return null;
+  const src = mapEmbedSrc({ map_lat: lat, map_lng: lng, address });
+  if (!src) return null;
   return (
     <div
       className={`${panelClass(d)} ${revealClass(d)} overflow-hidden`}
@@ -148,7 +176,7 @@ export function MapSection({
       <LazyMount minHeight={224}>
         <iframe
           title="Location"
-          src={`https://maps.google.com/maps?q=${encodeURIComponent(address)}&output=embed`}
+          src={src}
           className="h-56 w-full border-0 grayscale-[35%] transition-all duration-500 hover:grayscale-0"
           loading="lazy"
           referrerPolicy="no-referrer-when-downgrade"

@@ -89,12 +89,21 @@ export interface Business {
   logo_url: string | null;
   cover_url: string | null;
   cover_type: 'image' | 'video';
+  /** Offer the visitor a sound button on a cover video. Never autoplays audio. */
+  cover_sound: boolean;
+  /** Play this instead of the video's own audio. */
+  cover_audio_url: string | null;
 
   email: string | null;
   phone: string | null;
   whatsapp: string | null;
   address: string | null;
   website: string | null;
+  /** Exact pin, when the owner pasted a Maps link or coordinates. */
+  map_lat: number | null;
+  map_lng: number | null;
+  /** Which contact rows show, and in what order. */
+  contact_order: string[];
 
   theme_color: string;
   template: string;

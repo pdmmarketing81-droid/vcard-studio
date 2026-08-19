@@ -153,6 +153,18 @@ const SIGNATURES: Array<{ type: string; test: (b: Buffer) => boolean }> = [
   { type: 'image/gif',  test: (b) => b.subarray(0, 6).toString('latin1') === 'GIF87a' || b.subarray(0, 6).toString('latin1') === 'GIF89a' },
   { type: 'image/webp', test: (b) => b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP' },
   { type: 'video/webm', test: (b) => b.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])) },
+
+  /* Audio, for the optional track over a cover video.
+
+     M4A must be tested BEFORE mp4: both are ISO containers and both carry
+     'ftyp' at offset 4, so the only thing telling them apart is the brand that
+     follows. Listed the other way round, every song a shop uploaded would be
+     stored as video/mp4 — playable, but named and typed as something it is
+     not, which is the kind of small lie that confuses whoever debugs it next. */
+  { type: 'audio/mp4',  test: (b) => b.subarray(4, 8).toString('latin1') === 'ftyp' && b.subarray(8, 11).toString('latin1') === 'M4A' },
+  { type: 'audio/mpeg', test: (b) => b.subarray(0, 3).toString('latin1') === 'ID3' || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0) },
+  { type: 'audio/wav',  test: (b) => b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WAVE' },
+
   // MP4 and friends: a size field, then 'ftyp', then the brand.
   { type: 'video/mp4',  test: (b) => b.subarray(4, 8).toString('latin1') === 'ftyp' },
 ];
@@ -172,6 +184,9 @@ export function extensionFor(type: string): string {
     case 'image/webp': return 'webp';
     case 'video/mp4': return 'mp4';
     case 'video/webm': return 'webm';
+    case 'audio/mpeg': return 'mp3';
+    case 'audio/mp4': return 'm4a';
+    case 'audio/wav': return 'wav';
     default: return 'bin';
   }
 }
