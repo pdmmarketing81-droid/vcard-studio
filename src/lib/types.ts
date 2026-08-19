@@ -106,6 +106,8 @@ export interface Business {
   map_label: string | null;
   /** The link that was pasted — "open in Maps" uses it unchanged. */
   map_url: string | null;
+  /** Google's "Embed a map" src. The only input that draws the place card. */
+  map_embed: string | null;
   /** Which contact rows show, and in what order. */
   contact_order: string[];
 

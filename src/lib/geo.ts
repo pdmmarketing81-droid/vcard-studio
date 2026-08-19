@@ -101,6 +101,29 @@ export function parsePlaceName(input: string): string | null {
   }
 }
 
+/**
+ * Google's own embed link, out of whatever was pasted.
+ *
+ * "Share → Embed a map" gives a whole <iframe> tag; people paste the tag, or
+ * just the src, or the bare URL. All three are handled by looking for the URL
+ * anywhere in the string.
+ *
+ * This is the one input that produces the map people picture: a single pin with
+ * the shop's name, address and rating in a card beside it. Everything else we
+ * can build is either a search — which shows the neighbours too — or a pin
+ * labelled with numbers.
+ *
+ * Only google.com/maps/embed is accepted. This value becomes an iframe src on a
+ * public page, so anything else pasted here would be an invitation to put an
+ * arbitrary site inside our card.
+ */
+export function parseEmbedSrc(input: string): string | null {
+  const m = (input || '').match(
+    /https:\/\/www\.google\.com\/maps\/embed\?pb=[^"'\s<>]+/
+  );
+  return m ? m[0].slice(0, 2000) : null;
+}
+
 /** True for the short links we cannot read, so the form can say why. */
 export function isShortMapsLink(input: string): boolean {
   return /(?:maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(input || '');
@@ -111,6 +134,7 @@ interface MapFields {
   map_lng?: number | null;
   map_label?: string | null;
   map_url?: string | null;
+  map_embed?: string | null;
   address?: string | null;
 }
 
@@ -126,13 +150,26 @@ interface MapFields {
  * tell someone how to get there are still readable.
  */
 export function mapEmbedSrc(b: MapFields): string | null {
+  // Google's own embed wins outright. It is the only input that names one exact
+  // place and draws the card with the address and rating on it.
+  if (b.map_embed) return b.map_embed;
+
   if (b.map_lat != null && b.map_lng != null) {
     const at = `${b.map_lat},${b.map_lng}`;
+
+    /* q=lat,lng(Label) — a single pin at those exact coordinates carrying that
+       caption. Not a search.
+
+       The previous attempt passed q=<name>&ll=<coords>, which IS a search:
+       asking for "Samdariya Gold" put pins on the shop, the hotel next door and
+       the mall, and a customer had no way to tell which one they wanted. This
+       form draws one pin and nothing else. */
     if (b.map_label) {
-      return `https://maps.google.com/maps?q=${encodeURIComponent(b.map_label)}&ll=${at}&z=17&output=embed`;
+      return `https://maps.google.com/maps?q=${at}(${encodeURIComponent(b.map_label)})&z=17&output=embed`;
     }
     return `https://maps.google.com/maps?q=${at}&z=17&output=embed`;
   }
+
   if (b.address) {
     return `https://maps.google.com/maps?q=${encodeURIComponent(b.address)}&output=embed`;
   }

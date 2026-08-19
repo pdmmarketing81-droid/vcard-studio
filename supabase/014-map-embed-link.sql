@@ -1,0 +1,25 @@
+-- ---------------------------------------------------------------------
+-- 014 — accept Google's own "Embed a map" link.
+--
+-- Applied 19 Aug 2026.
+--
+-- 013 put the place's name on the pin by passing q=<name> together with
+-- ll=<coords>. That is a SEARCH, and a search returns everything that matches:
+-- asking for "Samdariya Gold" drew three pins — the shop, the hotel next door
+-- and the mall — with nothing to say which one the customer wanted. Precise
+-- coordinates and a vague map at the same time.
+--
+-- Google Maps has a second share option, "Share → Embed a map", which gives an
+-- iframe whose src is /maps/embed?pb=<long opaque string>. That string names one
+-- exact place, and the embed draws the card with the name, address and rating —
+-- the version people recognise from other sites. No API key needed.
+--
+-- Stored when the owner pastes it. When they do not, the fallback is now
+-- q=lat,lng(Label), which is a single pin with a caption rather than a search.
+--
+-- SAFETY: this value becomes an iframe src on a public page. parseEmbedSrc()
+-- accepts only https://www.google.com/maps/embed?pb=… and nothing else — a
+-- lookalike host such as google.com.evil.test is refused. There is a test.
+-- ---------------------------------------------------------------------
+
+alter table public.businesses add column if not exists map_embed text;

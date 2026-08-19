@@ -155,6 +155,7 @@ export function MapSection({
   lat = null,
   lng = null,
   label = null,
+  embed = null,
   d,
   delay = 0,
 }: {
@@ -164,10 +165,14 @@ export function MapSection({
   lng?: number | null;
   /** The place's name, so the pin reads as a shop and not as numbers. */
   label?: string | null;
+  /** Google's own embed link — the best version, when they pasted it. */
+  embed?: string | null;
   d: ResolvedDesign;
   delay?: number;
 }) {
-  const src = mapEmbedSrc({ map_lat: lat, map_lng: lng, map_label: label, address });
+  const src = mapEmbedSrc({
+    map_lat: lat, map_lng: lng, map_label: label, map_embed: embed, address,
+  });
   if (!src) return null;
   return (
     <div

@@ -45,7 +45,7 @@ try {
   process.exit(1);
 }
 
-const { parseLatLng, parsePlaceName, isShortMapsLink } = await import(
+const { parseLatLng, parsePlaceName, parseEmbedSrc, isShortMapsLink } = await import(
   pathToFileURL(join(out, 'geo.js')).href
 );
 
@@ -91,6 +91,24 @@ const names = [
 ];
 for (const [input, want] of names) {
   check(`name ${JSON.stringify(input).slice(0, 48)}`, parsePlaceName(input), want);
+}
+
+/* ------------------------------ embed link ------------------------------ */
+const EMBED = 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3600.5!2d81.29!3d24.54!5e0';
+const embeds = [
+  // The whole iframe tag, which is what "Copy HTML" puts on the clipboard.
+  [`<iframe src="${EMBED}" width="600" height="450"></iframe>`, EMBED],
+  // Just the URL.
+  [EMBED, EMBED],
+  // A normal place link is not an embed link.
+  ['https://www.google.com/maps/place/Samdariya+Gold/@24.5,81.2,17z', null],
+  // Anything else must be refused: this value becomes an iframe src.
+  ['<iframe src="https://evil.example.com/x"></iframe>', null],
+  ['https://www.google.com.evil.test/maps/embed?pb=1', null],
+  ['', null],
+];
+for (const [input, want] of embeds) {
+  check(`embed ${JSON.stringify(input).slice(0, 46)}`, parseEmbedSrc(input), want);
 }
 
 check('short link recognised', isShortMapsLink('https://maps.app.goo.gl/x'), true);

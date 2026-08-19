@@ -62,6 +62,7 @@ export default function CardView({
         lat={b.map_lat}
         lng={b.map_lng}
         label={b.map_label}
+        embed={b.map_embed}
         d={d}
         delay={x}
       />

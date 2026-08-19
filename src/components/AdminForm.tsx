@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { slugify } from '@/lib/slug';
-import { parseLatLng, parsePlaceName, isShortMapsLink } from '@/lib/geo';
+import { parseLatLng, parsePlaceName, parseEmbedSrc, isShortMapsLink } from '@/lib/geo';
 import { TEMPLATES, getTemplate } from '@/lib/templates';
 import type { BusinessFull, SocialPlatform } from '@/lib/types';
 import type { CardDesign } from '@/lib/design';
@@ -216,10 +216,11 @@ export default function AdminForm({
      Parsing happens on the way in and again on the server, so the box can hold
      a link, coordinates, or nonsense without breaking anything. */
   const [mapLocation, setMapLocation] = useState(
-    // The original link first: editing a card should show what was pasted, not
-    // a pair of numbers derived from it. Losing the link would lose the name
-    // and the place page along with it.
-    initial?.map_url ||
+    // Whatever was pasted, in order of how good it was. Editing a card should
+    // show the thing that produced the current map, not a derived version of
+    // it — showing coordinates back would quietly lose the embed on next save.
+    initial?.map_embed ||
+      initial?.map_url ||
       (initial?.map_lat != null && initial?.map_lng != null
         ? `${initial.map_lat}, ${initial.map_lng}`
         : '')
@@ -268,6 +269,7 @@ export default function AdminForm({
       map_lat: parseLatLng(mapLocation)?.lat ?? null,
       map_lng: parseLatLng(mapLocation)?.lng ?? null,
       map_label: parsePlaceName(mapLocation),
+      map_embed: parseEmbedSrc(mapLocation),
       map_url: /^https?:\/\//i.test(mapLocation.trim()) && parseLatLng(mapLocation)
         ? mapLocation.trim()
         : null,
@@ -501,44 +503,57 @@ export default function AdminForm({
               <input className={inputClass} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Sector 44, Gurugram, Haryana 122003" />
             </Field>
 
-            <Field
-              label="Exact location on the map"
-              hint="Open Google Maps on your phone, find the shop, press Share, and paste the link here. Or paste coordinates like 24.5362, 81.3037."
-            >
-              <input
+            <Field label="Exact location on the map">
+              {/* The instructions matter more than the box. Everyone reaches
+                  for "Share → Copy link" because that is the one they know, and
+                  it gives the worst of the three results. */}
+              <div className="mb-2 rounded-lg bg-slate-50 px-3 py-2.5 text-xs leading-relaxed text-slate-600">
+                <span className="font-semibold text-slate-800">Best result:</span> Google Maps
+                → find the shop → <b>Share</b> → <b>Embed a map</b> → Copy HTML → paste here.
+                That shows the shop&apos;s name, address and rating on the map.
+                <span className="mt-1 block text-slate-500">
+                  A normal share link also works but only gives a plain pin. Coordinates
+                  like <code>24.5362, 81.3037</code> work too.
+                </span>
+              </div>
+
+              <textarea
+                rows={2}
                 className={inputClass}
                 value={mapLocation}
                 onChange={(e) => setMapLocation(e.target.value)}
-                placeholder="Paste a Google Maps link, or 24.5362, 81.3037"
+                placeholder='Paste the <iframe> from "Embed a map", a Maps link, or 24.5362, 81.3037'
               />
-              {/* Told immediately rather than after saving, because a wrong pin
+
+              {/* Said immediately rather than after saving, because a wrong pin
                   looks exactly like a right one until somebody drives to it. */}
-              {mapLocation.trim() && !parseLatLng(mapLocation) && (
+              {parseEmbedSrc(mapLocation) ? (
+                <p className="mt-1.5 text-xs font-semibold text-emerald-700">
+                  Embed map set — this is the good one. Name and address will show.
+                </p>
+              ) : parseLatLng(mapLocation) ? (
+                <p className="mt-1.5 text-xs text-emerald-700">
+                  Pin set
+                  {parsePlaceName(mapLocation)
+                    ? ` — ${parsePlaceName(mapLocation)}`
+                    : ` — ${parseLatLng(mapLocation)!.lat}, ${parseLatLng(mapLocation)!.lng}`}
+                  <span className="mt-0.5 block font-normal text-slate-500">
+                    One plain pin. For the version with the name and rating, use
+                    Share → Embed a map instead.
+                  </span>
+                </p>
+              ) : mapLocation.trim() ? (
                 <p className="mt-1.5 text-xs text-amber-700">
                   {isShortMapsLink(mapLocation)
-                    ? 'Short maps.app.goo.gl links do not carry the location. Open it once in a browser and copy the long link from the address bar.'
-                    : 'Could not read a location from that. Paste the full Google Maps link, or two numbers separated by a comma.'}
+                    ? 'Short maps.app.goo.gl links carry no location. Open it once in a browser and copy the long link from the address bar.'
+                    : 'Could not read a location from that. Use Share → Embed a map, or paste the full link, or two numbers separated by a comma.'}
                 </p>
-              )}
-              {parseLatLng(mapLocation) && (
-                <p className="mt-1.5 text-xs text-emerald-700">
-                  Pin set{parsePlaceName(mapLocation) ? ` — ${parsePlaceName(mapLocation)}` : ''}
-                  {!parsePlaceName(mapLocation) &&
-                    ` — ${parseLatLng(mapLocation)!.lat}, ${parseLatLng(mapLocation)!.lng}`}
-                  {!parsePlaceName(mapLocation) && (
-                    <span className="mt-0.5 block text-slate-500">
-                      Paste the link from Google Maps instead of the numbers and the map
-                      will show the shop&apos;s name on the pin.
-                    </span>
-                  )}
-                </p>
-              )}
-              {!mapLocation.trim() && address && (
+              ) : address ? (
                 <p className="mt-1.5 text-xs text-slate-500">
                   Empty means the map searches for the address text, which lands on the
                   wrong place for anything outside a city.
                 </p>
-              )}
+              ) : null}
             </Field>
 
             <Field label="Order of the contact rows" hint="Whatever you most want tapped should sit first.">

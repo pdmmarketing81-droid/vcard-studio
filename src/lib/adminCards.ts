@@ -1,6 +1,6 @@
 import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from './supabase';
-import { parseLatLng, parsePlaceName } from './geo';
+import { parseLatLng, parsePlaceName, parseEmbedSrc } from './geo';
 import { slugify, normaliseDomain } from './slug';
 
 export type Db = ReturnType<typeof supabaseAdmin>;
@@ -81,6 +81,9 @@ export function businessRow(body: Body, slug: string) {
         // an unreadable paste here would put a dead "open in Maps" button on
         // the card, which is worse than falling back to the address.
         map_url: isUrl && at ? raw.slice(0, 1000) : null,
+        // Only ever a google.com/maps/embed URL — this ends up as an iframe src
+        // on a public page, so parseEmbedSrc refuses everything else.
+        map_embed: parseEmbedSrc(raw),
       };
     })(),
 
