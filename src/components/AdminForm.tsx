@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { slugify } from '@/lib/slug';
-import { parseLatLng, isShortMapsLink } from '@/lib/geo';
+import { parseLatLng, parsePlaceName, isShortMapsLink } from '@/lib/geo';
 import { TEMPLATES, getTemplate } from '@/lib/templates';
 import type { BusinessFull, SocialPlatform } from '@/lib/types';
 import type { CardDesign } from '@/lib/design';
@@ -216,9 +216,13 @@ export default function AdminForm({
      Parsing happens on the way in and again on the server, so the box can hold
      a link, coordinates, or nonsense without breaking anything. */
   const [mapLocation, setMapLocation] = useState(
-    initial?.map_lat != null && initial?.map_lng != null
-      ? `${initial.map_lat}, ${initial.map_lng}`
-      : ''
+    // The original link first: editing a card should show what was pasted, not
+    // a pair of numbers derived from it. Losing the link would lose the name
+    // and the place page along with it.
+    initial?.map_url ||
+      (initial?.map_lat != null && initial?.map_lng != null
+        ? `${initial.map_lat}, ${initial.map_lng}`
+        : '')
   );
 
   const [contactOrder, setContactOrder] = useState<string[]>(
@@ -263,6 +267,10 @@ export default function AdminForm({
       // than being discovered after saving.
       map_lat: parseLatLng(mapLocation)?.lat ?? null,
       map_lng: parseLatLng(mapLocation)?.lng ?? null,
+      map_label: parsePlaceName(mapLocation),
+      map_url: /^https?:\/\//i.test(mapLocation.trim()) && parseLatLng(mapLocation)
+        ? mapLocation.trim()
+        : null,
       contact_order: contactOrder,
       theme_color: themeColor,
       template,
@@ -514,7 +522,15 @@ export default function AdminForm({
               )}
               {parseLatLng(mapLocation) && (
                 <p className="mt-1.5 text-xs text-emerald-700">
-                  Pin set — {parseLatLng(mapLocation)!.lat}, {parseLatLng(mapLocation)!.lng}
+                  Pin set{parsePlaceName(mapLocation) ? ` — ${parsePlaceName(mapLocation)}` : ''}
+                  {!parsePlaceName(mapLocation) &&
+                    ` — ${parseLatLng(mapLocation)!.lat}, ${parseLatLng(mapLocation)!.lng}`}
+                  {!parsePlaceName(mapLocation) && (
+                    <span className="mt-0.5 block text-slate-500">
+                      Paste the link from Google Maps instead of the numbers and the map
+                      will show the shop&apos;s name on the pin.
+                    </span>
+                  )}
                 </p>
               )}
               {!mapLocation.trim() && address && (

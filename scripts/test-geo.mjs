@@ -2,48 +2,100 @@
 /**
  * Tests for lib/geo.ts — reading a location out of whatever someone pastes.
  *
- *   node scripts/test-geo.mjs
+ *   npm run test:geo
  *
- * There is no test runner in this project, and geo.ts is pure functions with no
- * imports, so this strips the TypeScript annotations crudely and evaluates it.
- * Brittle if geo.ts grows imports or classes — if that happens, this stops
- * working loudly rather than silently, which is the acceptable failure.
+ * There is no test runner in this project. The first version of this file
+ * stripped the TypeScript with regexes and evaluated the result; it broke the
+ * moment geo.ts gained a non-exported `interface`. So it now runs the real
+ * compiler over the one file and imports the output — slower by a second, and
+ * it cannot rot in that way again.
  *
- * Worth having: the /maps/place/ case below failed on the first run. Such a URL
- * carries TWO coordinate pairs — @ is the camera position, !3d/!4d is the pin —
- * and the original code read the wrong one. Reading the code had not shown it.
+ * Worth having: two of these failed on their first run. A /maps/place/ URL
+ * carries TWO coordinate pairs — @ is the camera, !3d/!4d is the pin — and the
+ * original code read the wrong one, putting the marker a few hundred metres
+ * from the shop. Reading the code had not shown it.
  */
-const src = await import('fs').then(m => m.readFileSync('src/lib/geo.ts','utf8'));
-// crude TS->JS: strip types well enough for these pure functions
-const js = src
-  .replace(/export interface[\s\S]*?\n}\n/g, '')
-  .replace(/: LatLng \| null/g, '').replace(/: string\)/g, ')')
-  .replace(/: boolean/g, '').replace(/export function/g, 'function')
-  .replace(/\(input: string\)/g, '(input)')
-  .replace(/\(lat: number, lng: number\)/g, '(lat, lng)')
-  .replace(/b: \{[\s\S]*?\}\): string \| null/g, 'b)')
-  .replace(/: string \| null/g, '');
-const mod = new Function(js + '; return { parseLatLng, isShortMapsLink };')();
-const { parseLatLng, isShortMapsLink } = mod;
 
-const cases = [
-  ['24.5362, 81.3037', {lat:24.5362,lng:81.3037}],
-  ['24.5362,81.3037', {lat:24.5362,lng:81.3037}],
-  ['https://www.google.com/maps/@24.5362,81.3037,17z', {lat:24.5362,lng:81.3037}],
-  ['https://www.google.com/maps/place/Rewa/@24.5362,81.3037,15z/data=!3m1!4b1!4m6!3d24.5535!4d81.2993', {lat:24.5535,lng:81.2993}],
-  ['https://maps.google.com/?q=24.5362,81.3037', {lat:24.5362,lng:81.3037}],
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+const out = mkdtempSync(join(tmpdir(), 'geo-'));
+
+try {
+  execFileSync(
+    'npx',
+    [
+      'tsc', 'src/lib/geo.ts',
+      '--outDir', out,
+      '--module', 'esnext',
+      '--target', 'es2022',
+      '--moduleResolution', 'bundler',
+      // geo.ts imports nothing, but tsc still pulls in every @types package it
+      // can find and then reports errors from inside them. None of that has
+      // anything to do with this file.
+      '--skipLibCheck',
+    ],
+    { stdio: 'inherit' }
+  );
+} catch {
+  console.error('Could not compile src/lib/geo.ts');
+  process.exit(1);
+}
+
+const { parseLatLng, parsePlaceName, isShortMapsLink } = await import(
+  pathToFileURL(join(out, 'geo.js')).href
+);
+
+let fail = 0;
+const check = (label, got, want) => {
+  const ok = JSON.stringify(got) === JSON.stringify(want);
+  if (!ok) fail++;
+  console.log(`${ok ? 'ok  ' : 'FAIL'} ${label.padEnd(56)} -> ${JSON.stringify(got)}`);
+};
+
+/* ------------------------------ coordinates ----------------------------- */
+const coords = [
+  ['24.5362, 81.3037', { lat: 24.5362, lng: 81.3037 }],
+  ['24.5362,81.3037', { lat: 24.5362, lng: 81.3037 }],
+  ['https://www.google.com/maps/@24.5362,81.3037,17z', { lat: 24.5362, lng: 81.3037 }],
+  // Both pairs present: !3d/!4d is the pin and must win over @.
+  [
+    'https://www.google.com/maps/place/Rewa/@24.5362,81.3037,15z/data=!3m1!4b1!4m6!3d24.5535!4d81.2993',
+    { lat: 24.5535, lng: 81.2993 },
+  ],
+  ['https://maps.google.com/?q=24.5362,81.3037', { lat: 24.5362, lng: 81.3037 }],
   ['Rewa Madhya Pradesh', null],
+  // Short links carry no coordinates at all.
   ['https://maps.app.goo.gl/abc123', null],
+  // Null Island is a failed parse, not a shop.
   ['0,0', null],
   ['999, 999', null],
   ['', null],
 ];
-let fail = 0;
-for (const [input, want] of cases) {
-  const got = parseLatLng(input);
-  const ok = JSON.stringify(got) === JSON.stringify(want);
-  if (!ok) fail++;
-  console.log(`${ok?'ok  ':'FAIL'} ${JSON.stringify(input).slice(0,58).padEnd(60)} -> ${JSON.stringify(got)}`);
+for (const [input, want] of coords) {
+  check(JSON.stringify(input).slice(0, 54), parseLatLng(input), want);
 }
-console.log(`\nshort-link detected: ${isShortMapsLink('https://maps.app.goo.gl/x')}`);
-console.log(fail ? `${fail} FAILED` : 'ALL PASS');
+
+/* -------------------------------- the name ------------------------------ */
+const names = [
+  [
+    'https://www.google.com/maps/place/Samdareeya+hotel+and+multiplex/@24.5442214,81.3166173,17z/data=!3m1',
+    'Samdareeya hotel and multiplex',
+  ],
+  ['https://www.google.com/maps/place/Shri+Ram+Medical/@24.5,81.3,17z', 'Shri Ram Medical'],
+  ['https://www.google.com/maps/@24.5442,81.3166,17z', null],
+  ['24.5442, 81.3166', null],
+];
+for (const [input, want] of names) {
+  check(`name ${JSON.stringify(input).slice(0, 48)}`, parsePlaceName(input), want);
+}
+
+check('short link recognised', isShortMapsLink('https://maps.app.goo.gl/x'), true);
+
+rmSync(out, { recursive: true, force: true });
+
+console.log(fail ? `\n${fail} FAILED` : '\nALL PASS');
+process.exit(fail ? 1 : 0);

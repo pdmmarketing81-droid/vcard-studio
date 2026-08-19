@@ -70,10 +70,21 @@ export default function CoverMedia({
           // Still refused. Leave it; the button is there.
         }
       } else if (video.current) {
-        video.current.muted = false;
-        // play() again because some browsers pause on the unmute.
-        void video.current.play().catch(() => {});
-        setOn(true);
+        const v = video.current;
+        v.muted = false;
+        try {
+          await v.play();
+          setOn(true);
+        } catch {
+          /* Refused — and this is the case that broke it on phones. Unmuting
+             first and hoping meant the browser stopped the video altogether, so
+             a tap turned a playing silent video into a frozen frame. Put the
+             mute back and get it moving again; silent and playing beats loud
+             and stopped. */
+          v.muted = true;
+          void v.play().catch(() => {});
+          setOn(false);
+        }
       }
     };
 
@@ -125,7 +136,17 @@ export default function CoverMedia({
       return;
     }
 
-    if (video.current) video.current.muted = !next;
+    if (!video.current) return;
+    const v = video.current;
+    v.muted = !next;
+    try {
+      await v.play();
+    } catch {
+      // Same guard as the automatic path: never leave the video stopped.
+      v.muted = true;
+      setOn(false);
+      void v.play().catch(() => {});
+    }
   }
 
   return (
@@ -154,7 +175,11 @@ export default function CoverMedia({
           type="button"
           onClick={toggle}
           aria-label={on ? 'Turn sound off' : 'Turn sound on'}
-          className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur transition hover:bg-black/65"
+          /* Top right, not bottom. At the bottom it sat under the thumb and out
+             of the eyeline, so nobody knew the video had sound to turn on. Up
+             here it is the first thing above the picture, where a muted-speaker
+             icon reads as an invitation. */
+          className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white shadow-lg backdrop-blur transition hover:bg-black/70"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
                strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]">

@@ -12,7 +12,8 @@
     "backup": "node scripts/backup.mjs",
     "backup:local": "node scripts/backup.mjs --local-only",
     "backup:check": "node scripts/restore.mjs",
-    "backup:restore": "node scripts/restore.mjs"
+    "backup:restore": "node scripts/restore.mjs",
+    "test:geo": "node scripts/test-geo.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.696.0",

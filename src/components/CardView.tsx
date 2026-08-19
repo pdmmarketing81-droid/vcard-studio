@@ -57,7 +57,14 @@ export default function CardView({
     videos: (x) => <Videos videos={b.videos} d={d} titleRule={rule} title={sectionLabel(tpl, 'videos', 'Videos')} delay={x} />,
     testimonials: (x) => <Testimonials testimonials={b.testimonials} d={d} titleRule={rule} title={sectionLabel(tpl, 'testimonials', 'Testimonials')} delay={x} />,
     map: (x) => (
-      <MapSection address={b.address} lat={b.map_lat} lng={b.map_lng} d={d} delay={x} />
+      <MapSection
+        address={b.address}
+        lat={b.map_lat}
+        lng={b.map_lng}
+        label={b.map_label}
+        d={d}
+        delay={x}
+      />
     ),
     qr: (x) => <QrSection slug={b.slug} cardUrl={cardUrl} d={d} titleRule={rule} preview={preview} delay={x} />,
     share: (x) => <ShareBar url={cardUrl} title={b.name} d={d} titleRule={rule} delay={x} />,

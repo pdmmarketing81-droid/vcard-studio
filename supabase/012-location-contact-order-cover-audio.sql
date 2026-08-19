@@ -44,3 +44,21 @@ alter table public.businesses add column if not exists contact_order jsonb
 -- ---------------------------------------------------------------------
 alter table public.businesses add column if not exists cover_sound boolean not null default false;
 alter table public.businesses add column if not exists cover_audio_url text;
+
+-- ---------------------------------------------------------------------
+-- 013 (applied 19 Aug 2026) — the place's NAME and the pasted link.
+--
+-- 012's coordinates fixed the pin landing in the wrong town, but a pin at
+-- 24.544221, 81.319192 is labelled with those numbers. Exact and unreadable at
+-- the same time. The owner expects to see "Samdareeya hotel and multiplex".
+--
+-- map_label: pulled out of the /maps/place/<Name>/ part of a pasted URL and
+-- handed to the embed alongside the coordinates, so the pin carries a name.
+--
+-- map_url: the link exactly as pasted. "Open in Maps" uses it unchanged, so it
+-- opens the real place page — reviews, photos, Directions — instead of a bare
+-- dropped pin. Rebuilding that page from coordinates needs a paid Places
+-- lookup; keeping the link the person already had costs nothing.
+-- ---------------------------------------------------------------------
+alter table public.businesses add column if not exists map_label text;
+alter table public.businesses add column if not exists map_url text;

@@ -154,6 +154,7 @@ export function MapSection({
   address,
   lat = null,
   lng = null,
+  label = null,
   d,
   delay = 0,
 }: {
@@ -161,10 +162,12 @@ export function MapSection({
   /** The precise pin, when the owner supplied one. */
   lat?: number | null;
   lng?: number | null;
+  /** The place's name, so the pin reads as a shop and not as numbers. */
+  label?: string | null;
   d: ResolvedDesign;
   delay?: number;
 }) {
-  const src = mapEmbedSrc({ map_lat: lat, map_lng: lng, address });
+  const src = mapEmbedSrc({ map_lat: lat, map_lng: lng, map_label: label, address });
   if (!src) return null;
   return (
     <div

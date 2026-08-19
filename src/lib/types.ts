@@ -102,6 +102,10 @@ export interface Business {
   /** Exact pin, when the owner pasted a Maps link or coordinates. */
   map_lat: number | null;
   map_lng: number | null;
+  /** The place's name, so the pin is labelled instead of showing numbers. */
+  map_label: string | null;
+  /** The link that was pasted — "open in Maps" uses it unchanged. */
+  map_url: string | null;
   /** Which contact rows show, and in what order. */
   contact_order: string[];
 

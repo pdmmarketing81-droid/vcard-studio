@@ -1,6 +1,6 @@
 import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from './supabase';
-import { parseLatLng } from './geo';
+import { parseLatLng, parsePlaceName } from './geo';
 import { slugify, normaliseDomain } from './slug';
 
 export type Db = ReturnType<typeof supabaseAdmin>;
@@ -70,8 +70,18 @@ export function businessRow(body: Body, slug: string) {
        coordinates falls back to searching the address, which is what every
        card did before. */
     ...(() => {
-      const at = parseLatLng(String(body.map_location ?? ''));
-      return { map_lat: at?.lat ?? null, map_lng: at?.lng ?? null };
+      const raw = String(body.map_location ?? '').trim();
+      const at = parseLatLng(raw);
+      const isUrl = /^https?:\/\//i.test(raw);
+      return {
+        map_lat: at?.lat ?? null,
+        map_lng: at?.lng ?? null,
+        map_label: parsePlaceName(raw),
+        // Kept only when it is a real link and we got a pin out of it. Storing
+        // an unreadable paste here would put a dead "open in Maps" button on
+        // the card, which is worse than falling back to the address.
+        map_url: isUrl && at ? raw.slice(0, 1000) : null,
+      };
     })(),
 
     /* Only keys we know, de-duplicated, order preserved. A value from the form

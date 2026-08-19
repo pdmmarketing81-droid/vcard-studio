@@ -77,21 +77,61 @@ export function parseLatLng(input: string): LatLng | null {
   return null;
 }
 
+/**
+ * The place's name, out of a /maps/place/<Name>/ URL.
+ *
+ * Coordinates alone give a pin labelled "24.544221, 81.319192", which is exact
+ * and useless to a human. Google puts the name right there in the path, so the
+ * label costs nothing to recover — no API key, no lookup.
+ *
+ * `+` is Google's space. decodeURIComponent handles the rest, and a malformed
+ * escape throws rather than corrupting the name, so it is caught and dropped.
+ */
+export function parsePlaceName(input: string): string | null {
+  const m = (input || '').match(/\/maps\/place\/([^/@?]+)/);
+  if (!m) return null;
+  try {
+    const name = decodeURIComponent(m[1].replace(/\+/g, ' ')).trim();
+    // A coordinate pair sometimes sits where the name would be. That is not a
+    // name, and using it would put the numbers back on the label.
+    if (!name || /^-?\d{1,3}\.\d+,/.test(name)) return null;
+    return name.slice(0, 120);
+  } catch {
+    return null;
+  }
+}
+
 /** True for the short links we cannot read, so the form can say why. */
 export function isShortMapsLink(input: string): boolean {
   return /(?:maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(input || '');
 }
 
-/** The src for the embedded map. Coordinates when we have them, text when not. */
-export function mapEmbedSrc(b: {
+interface MapFields {
   map_lat?: number | null;
   map_lng?: number | null;
+  map_label?: string | null;
+  map_url?: string | null;
   address?: string | null;
-}): string | null {
+}
+
+/**
+ * The src for the embedded map.
+ *
+ * With a name AND coordinates, `q` carries the name and `ll` fixes the centre.
+ * That is the combination that produces a pin labelled "Samdareeya hotel and
+ * multiplex" instead of a pair of numbers — `q` alone would search and might
+ * pick the wrong branch, `ll` alone centres correctly but labels nothing.
+ *
+ * z=17 is street level: the building fills the frame while the road names that
+ * tell someone how to get there are still readable.
+ */
+export function mapEmbedSrc(b: MapFields): string | null {
   if (b.map_lat != null && b.map_lng != null) {
-    // z=17 is street level: the building fills the frame without losing the
-    // road names that tell someone how to get there.
-    return `https://maps.google.com/maps?q=${b.map_lat},${b.map_lng}&z=17&output=embed`;
+    const at = `${b.map_lat},${b.map_lng}`;
+    if (b.map_label) {
+      return `https://maps.google.com/maps?q=${encodeURIComponent(b.map_label)}&ll=${at}&z=17&output=embed`;
+    }
+    return `https://maps.google.com/maps?q=${at}&z=17&output=embed`;
   }
   if (b.address) {
     return `https://maps.google.com/maps?q=${encodeURIComponent(b.address)}&output=embed`;
@@ -99,12 +139,15 @@ export function mapEmbedSrc(b: {
   return null;
 }
 
-/** Where the "open in Maps" link goes — the pin if we have it, else the words. */
-export function mapLinkHref(b: {
-  map_lat?: number | null;
-  map_lng?: number | null;
-  address?: string | null;
-}): string | null {
+/**
+ * Where "open in Maps" goes.
+ *
+ * The pasted link wins over everything we could rebuild. It opens the real
+ * place page — reviews, photos, the Directions button — where coordinates only
+ * ever open a dropped pin in the middle of nowhere with no name on it.
+ */
+export function mapLinkHref(b: MapFields): string | null {
+  if (b.map_url) return b.map_url;
   if (b.map_lat != null && b.map_lng != null) {
     return `https://maps.google.com/?q=${b.map_lat},${b.map_lng}`;
   }
